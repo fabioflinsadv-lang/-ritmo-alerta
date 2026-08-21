@@ -713,6 +713,20 @@ function alertFast(){ beep(1000,110,'square',0); beep(1000,110,'square',180); }
 function alertSlow(){ beep(240,420,'sine',0); }
 function alertOk(){ beep(700,140,'sine',0); }
 function alertTransition(){ beep(600,90,'triangle',0); beep(800,90,'triangle',130); beep(1000,120,'triangle',260); }
+// Cria/retoma o AudioContext de forma SÍNCRONA dentro do toque do usuário
+// (obrigatório no iOS Safari — se o primeiro som for criado dentro de um
+// setInterval/timer, o navegador pode nunca "destravar" o áudio).
+function unlockAudio(){
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    var o = audioCtx.createOscillator();
+    var g = audioCtx.createGain();
+    g.gain.value = 0.0001;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + 0.05);
+  }catch(e){ console.log('unlockAudio falhou', e); }
+}
 function vibrate(pattern){ if(navigator.vibrate){ try{ navigator.vibrate(pattern); }catch(e){} } }
 
 function haversine(lat1, lon1, lat2, lon2){
@@ -723,6 +737,7 @@ function haversine(lat1, lon1, lat2, lon2){
 }
 
 function confirmStart(isFree, workoutId){
+  unlockAudio(); // primeiro som criado aqui, síncrono com o toque — não dentro do timer
   var workout;
   if(isFree){
     var zid = document.getElementById('freeZoneSelect').value;
@@ -741,7 +756,7 @@ function confirmStart(isFree, workoutId){
     blockTimeSec: 0,
     paused: false,
     lastAlertStatus: 'target',
-    lastAlertAt: 0,
+    lastReminderAt: 0,
     log: [],
     startedAt: new Date().toISOString()
   };
@@ -838,13 +853,17 @@ function tick(){
 
   updateRunUI(pace, zone, block);
 
-  // alerta sonoro a cada 5s
+  // alerta sonoro: dispara ao SAIR da faixa, e repete a cada ~10s
+  // enquanto continuar fora — antes só disparava uma vez e ficava mudo.
   if(RUN.totalTimeSec % 5 === 0 && pace!=null && zone){
     var status = pace < zone.min ? 'fast' : (pace > zone.max ? 'slow' : 'target');
-    if(status !== RUN.lastAlertStatus){
+    var changed = status !== RUN.lastAlertStatus;
+    var dueForReminder = status!=='target' && (RUN.totalTimeSec - RUN.lastReminderAt) >= 8;
+    if(changed || dueForReminder){
       if(status==='fast') alertFast();
       else if(status==='slow') alertSlow();
-      else alertOk();
+      else if(changed) alertOk(); // confirmação só toca na volta pro alvo, não repete
+      if(status!=='target') RUN.lastReminderAt = RUN.totalTimeSec;
       RUN.lastAlertStatus = status;
     }
   }
@@ -909,6 +928,7 @@ function advanceBlock(){
   RUN.blockTimeSec = 0;
   RUN.blockDistance = 0;
   RUN.lastAlertStatus = 'target';
+  RUN.lastReminderAt = RUN.totalTimeSec;
   vibrate([80,60,80]);
   alertTransition();
   if(RUN.blockIndex >= RUN.workout.blocks.length){
