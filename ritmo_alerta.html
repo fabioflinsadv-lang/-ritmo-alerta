@@ -343,7 +343,13 @@ var DEFAULT_ZONES = [
   {id:'recuperacao', name:'Recuperação', min:390, max:480, color:'#8C8C8C'},
   {id:'tempo', name:'Tempo/Limiar', min:305, max:315, color:'#E8551D'},
   {id:'intervalado', name:'Intervalado', min:265, max:280, color:'#d43f3f'},
-  {id:'alvo', name:'Ritmo Alvo (Prova)', min:285, max:292, color:'#F2B705'}
+  {id:'alvo', name:'Ritmo Alvo (Prova)', min:285, max:292, color:'#F2B705'},
+  {id:'intervalado_s2', name:'Intervalado (Sem.2)', min:265, max:275, color:'#d43f3f'},
+  {id:'intervalado_s3', name:'Intervalado (Sem.3)', min:275, max:285, color:'#d43f3f'},
+  {id:'intervalado_s4', name:'Intervalado (Sem.4)', min:280, max:290, color:'#d43f3f'},
+  {id:'tempo_s2', name:'Tempo (Sem.2)', min:295, max:305, color:'#E8551D'},
+  {id:'tempo_s3', name:'Tempo (Sem.3 final)', min:290, max:300, color:'#E8551D'},
+  {id:'moderado_s3', name:'Moderado (Sem.3 transição)', min:315, max:335, color:'#4c8bf5'}
 ];
 function defaultWorkouts(){
   return [
@@ -369,19 +375,151 @@ function defaultWorkouts(){
     ]},
     {id:'w3', name:'Semana 1 · Treino C (Longo)', blocks:[
       {label:'Corrida Longa', type:'time', value:2400, zoneId:'facil'}
+    ]},
+    {id:'w4', name:'Semana 2 · Treino A (Intervalado)', blocks:[
+      {label:'Aquecimento', type:'time', value:600, zoneId:'facil'},
+      {label:'Tiro 1', type:'distance', value:400, zoneId:'intervalado_s2'},
+      {label:'Recuperação 1', type:'time', value:90, zoneId:'recuperacao'},
+      {label:'Tiro 2', type:'distance', value:400, zoneId:'intervalado_s2'},
+      {label:'Recuperação 2', type:'time', value:90, zoneId:'recuperacao'},
+      {label:'Tiro 3', type:'distance', value:400, zoneId:'intervalado_s2'},
+      {label:'Recuperação 3', type:'time', value:90, zoneId:'recuperacao'},
+      {label:'Tiro 4', type:'distance', value:400, zoneId:'intervalado_s2'},
+      {label:'Recuperação 4', type:'time', value:90, zoneId:'recuperacao'},
+      {label:'Tiro 5', type:'distance', value:400, zoneId:'intervalado_s2'},
+      {label:'Recuperação 5', type:'time', value:90, zoneId:'recuperacao'},
+      {label:'Tiro 6', type:'distance', value:400, zoneId:'intervalado_s2'},
+      {label:'Recuperação 6', type:'time', value:90, zoneId:'recuperacao'},
+      {label:'Tiro 7', type:'distance', value:400, zoneId:'intervalado_s2'},
+      {label:'Recuperação 7', type:'time', value:90, zoneId:'recuperacao'},
+      {label:'Tiro 8', type:'distance', value:400, zoneId:'intervalado_s2'},
+      {label:'Desaquecimento', type:'time', value:300, zoneId:'facil'}
+    ]},
+    {id:'w5', name:'Semana 2 · Treino B (Tempo)', blocks:[
+      {label:'Aquecimento', type:'time', value:600, zoneId:'facil'},
+      {label:'Tempo Contínuo', type:'time', value:1200, zoneId:'tempo_s2'},
+      {label:'Desaquecimento', type:'time', value:600, zoneId:'facil'}
+    ]},
+    {id:'w6', name:'Semana 2 · Treino C (Longo)', blocks:[
+      {label:'Corrida Longa', type:'time', value:2700, zoneId:'facil'}
+    ]},
+    {id:'w7', name:'Semana 3 · Treino A (Intervalado)', blocks:[
+      {label:'Aquecimento', type:'time', value:600, zoneId:'facil'},
+      {label:'Tiro 1', type:'distance', value:600, zoneId:'intervalado_s3'},
+      {label:'Recuperação 1', type:'time', value:120, zoneId:'recuperacao'},
+      {label:'Tiro 2', type:'distance', value:600, zoneId:'intervalado_s3'},
+      {label:'Recuperação 2', type:'time', value:120, zoneId:'recuperacao'},
+      {label:'Tiro 3', type:'distance', value:600, zoneId:'intervalado_s3'},
+      {label:'Recuperação 3', type:'time', value:120, zoneId:'recuperacao'},
+      {label:'Tiro 4', type:'distance', value:600, zoneId:'intervalado_s3'},
+      {label:'Recuperação 4', type:'time', value:120, zoneId:'recuperacao'},
+      {label:'Tiro 5', type:'distance', value:600, zoneId:'intervalado_s3'},
+      {label:'Desaquecimento', type:'time', value:300, zoneId:'facil'}
+    ]},
+    {id:'w8', name:'Semana 3 · Treino B (Tempo Progressivo)', blocks:[
+      {label:'Progressivo - Início', type:'time', value:600, zoneId:'facil'},
+      {label:'Progressivo - Transição', type:'time', value:300, zoneId:'moderado_s3'},
+      {label:'Progressivo - Final Forte', type:'time', value:600, zoneId:'tempo_s3'},
+      {label:'Desaquecimento', type:'time', value:600, zoneId:'facil'}
+    ]},
+    {id:'w9', name:'Semana 3 · Treino C (Longo com Ritmo)', blocks:[
+      {label:'Corrida Fácil 1', type:'time', value:1200, zoneId:'facil'},
+      {label:'Trecho Forte 1', type:'distance', value:1000, zoneId:'alvo'},
+      {label:'Corrida Fácil 2', type:'time', value:480, zoneId:'facil'},
+      {label:'Trecho Forte 2', type:'distance', value:1000, zoneId:'alvo'},
+      {label:'Corrida Fácil 3', type:'time', value:840, zoneId:'facil'}
+    ]},
+    {id:'w10', name:'Semana 4 · Treino A (Intervalado)', blocks:[
+      {label:'Aquecimento', type:'time', value:600, zoneId:'facil'},
+      {label:'Tiro 1', type:'distance', value:800, zoneId:'intervalado_s4'},
+      {label:'Recuperação 1', type:'time', value:150, zoneId:'recuperacao'},
+      {label:'Tiro 2', type:'distance', value:800, zoneId:'intervalado_s4'},
+      {label:'Recuperação 2', type:'time', value:150, zoneId:'recuperacao'},
+      {label:'Tiro 3', type:'distance', value:800, zoneId:'intervalado_s4'},
+      {label:'Recuperação 3', type:'time', value:150, zoneId:'recuperacao'},
+      {label:'Tiro 4', type:'distance', value:800, zoneId:'intervalado_s4'},
+      {label:'Recuperação 4', type:'time', value:150, zoneId:'recuperacao'},
+      {label:'Tiro 5', type:'distance', value:800, zoneId:'intervalado_s4'},
+      {label:'Recuperação 5', type:'time', value:150, zoneId:'recuperacao'},
+      {label:'Tiro 6', type:'distance', value:800, zoneId:'intervalado_s4'},
+      {label:'Desaquecimento', type:'time', value:300, zoneId:'facil'}
+    ]},
+    {id:'w11', name:'Semana 4 · Treino B (Tempo)', blocks:[
+      {label:'Aquecimento', type:'time', value:600, zoneId:'facil'},
+      {label:'Tempo Contínuo', type:'time', value:1200, zoneId:'alvo'},
+      {label:'Desaquecimento', type:'time', value:600, zoneId:'facil'}
+    ]},
+    {id:'w12', name:'Semana 4 · Treino C (Longo com Ritmo)', blocks:[
+      {label:'Corrida Fácil 1', type:'time', value:900, zoneId:'facil'},
+      {label:'Trecho Forte 1', type:'distance', value:1000, zoneId:'alvo'},
+      {label:'Corrida Fácil 2', type:'time', value:480, zoneId:'facil'},
+      {label:'Trecho Forte 2', type:'distance', value:1000, zoneId:'alvo'},
+      {label:'Corrida Fácil 3', type:'time', value:480, zoneId:'facil'},
+      {label:'Trecho Forte 3', type:'distance', value:1000, zoneId:'alvo'},
+      {label:'Corrida Fácil 4', type:'time', value:720, zoneId:'facil'}
+    ]},
+    {id:'w13', name:'Semana 5 · Treino A (Ritmo Alvo)', blocks:[
+      {label:'Aquecimento', type:'time', value:600, zoneId:'facil'},
+      {label:'Tiro 1', type:'distance', value:1000, zoneId:'alvo'},
+      {label:'Recuperação 1', type:'time', value:150, zoneId:'recuperacao'},
+      {label:'Tiro 2', type:'distance', value:1000, zoneId:'alvo'},
+      {label:'Recuperação 2', type:'time', value:150, zoneId:'recuperacao'},
+      {label:'Tiro 3', type:'distance', value:1000, zoneId:'alvo'},
+      {label:'Recuperação 3', type:'time', value:150, zoneId:'recuperacao'},
+      {label:'Tiro 4', type:'distance', value:1000, zoneId:'alvo'},
+      {label:'Desaquecimento', type:'time', value:300, zoneId:'facil'}
+    ]},
+    {id:'w14', name:'Semana 5 · Treino B (Simulado 3km)', blocks:[
+      {label:'Aquecimento', type:'time', value:600, zoneId:'facil'},
+      {label:'Simulado 3km', type:'distance', value:3000, zoneId:'alvo'},
+      {label:'Desaquecimento', type:'time', value:600, zoneId:'facil'}
+    ]},
+    {id:'w15', name:'Semana 5 · Treino C (Recuperação)', blocks:[
+      {label:'Corrida Fácil', type:'time', value:2400, zoneId:'facil'}
+    ]},
+    {id:'w16', name:'Semana 6 · Treino A (Afiação)', blocks:[
+      {label:'Aquecimento', type:'time', value:600, zoneId:'facil'},
+      {label:'Tiro 1', type:'distance', value:400, zoneId:'alvo'},
+      {label:'Recuperação 1', type:'time', value:120, zoneId:'recuperacao'},
+      {label:'Tiro 2', type:'distance', value:400, zoneId:'alvo'},
+      {label:'Recuperação 2', type:'time', value:120, zoneId:'recuperacao'},
+      {label:'Tiro 3', type:'distance', value:400, zoneId:'alvo'},
+      {label:'Recuperação 3', type:'time', value:120, zoneId:'recuperacao'},
+      {label:'Tiro 4', type:'distance', value:400, zoneId:'alvo'},
+      {label:'Desaquecimento', type:'time', value:300, zoneId:'facil'}
+    ]},
+    {id:'w17', name:'Semana 6 · Treino B (Fácil Curto)', blocks:[
+      {label:'Corrida Fácil', type:'time', value:1350, zoneId:'facil'}
+    ]},
+    {id:'w18', name:'Semana 6 · Teste Final (5km)', blocks:[
+      {label:'Aquecimento', type:'time', value:600, zoneId:'facil'},
+      {label:'Prova 5km', type:'distance', value:5000, zoneId:'alvo'}
     ]}
   ];
 }
 
 var STATE = { zones:[], workouts:[] };
 
+// Junta o que já está salvo com os padrões do pacote, sem duplicar
+// (usa o id como chave) e sem apagar nada que o usuário tenha criado.
+function mergeDefaults(existing, defaults, idKey){
+  var ids = {};
+  existing.forEach(function(x){ ids[x[idKey]] = true; });
+  var merged = existing.slice();
+  defaults.forEach(function(d){ if(!ids[d[idKey]]){ merged.push(d); } });
+  return merged;
+}
+
 async function loadConfig(){
   var z = await storeGet('config:zones');
-  if(!z){ z = DEFAULT_ZONES; await storeSetRetry('config:zones', z); }
-  STATE.zones = z;
+  var zMerged = mergeDefaults(z || [], DEFAULT_ZONES, 'id');
+  if(!z || zMerged.length !== z.length){ await storeSetRetry('config:zones', zMerged); }
+  STATE.zones = zMerged;
+
   var w = await storeGet('config:workouts');
-  if(!w){ w = defaultWorkouts(); await storeSetRetry('config:workouts', w); }
-  STATE.workouts = w;
+  var wMerged = mergeDefaults(w || [], defaultWorkouts(), 'id');
+  if(!w || wMerged.length !== w.length){ await storeSetRetry('config:workouts', wMerged); }
+  STATE.workouts = wMerged;
 }
 
 function zoneById(id){ return STATE.zones.find(function(z){return z.id===id;}); }
