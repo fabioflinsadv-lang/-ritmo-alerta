@@ -529,9 +529,42 @@ function switchTab(name){
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
   document.getElementById('view-'+name).classList.add('active');
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.toggle('active', b.dataset.tab===name);});
-  if(name==='treinos') renderZoneSelectOptions();
+  if(name==='treinos'){ renderZoneSelectOptions(); renderWorkouts(); }
   if(name==='correr') renderRunPicker();
   if(name==='historico') renderHistory();
+}
+
+// Monta um resumo de quais treinos já foram concluídos de verdade,
+// olhando o Histórico real — não uma marcação manual que pode ficar
+// desatualizada ou errada.
+async function getCompletedSummary(){
+  var keys = await storeList('sessions:');
+  var sessions = [];
+  if(keys && keys.length){
+    for(var i=0;i<keys.length;i++){
+      var s = await storeGet(keys[i]);
+      if(s) sessions.push(s);
+    }
+  }
+  LOCAL_SESSIONS.forEach(function(s){
+    if(!sessions.find(function(x){return x.date===s.date;})) sessions.push(s);
+  });
+  var summary = {};
+  sessions.forEach(function(s){
+    if(!summary[s.workoutName]) summary[s.workoutName] = {count:0, lastDate:null};
+    summary[s.workoutName].count += 1;
+    if(!summary[s.workoutName].lastDate || new Date(s.date) > new Date(summary[s.workoutName].lastDate)){
+      summary[s.workoutName].lastDate = s.date;
+    }
+  });
+  return summary;
+}
+function completedBadgeHtml(summary, workoutName){
+  var comp = summary[workoutName];
+  if(!comp) return '';
+  var dateStr = new Date(comp.lastDate).toLocaleDateString('pt-BR');
+  return '<div style="font-size:12px; color:var(--green); font-weight:700; margin:4px 0;">'+
+    '✅ Concluído'+(comp.count>1?' '+comp.count+'x':'')+' — última vez em '+dateStr+'</div>';
 }
 
 /* ============ ZONES UI ============ */
@@ -591,13 +624,15 @@ async function deleteZone(id){
 
 /* ============ WORKOUTS UI ============ */
 var formBlocks = [];
-function renderWorkouts(){
+async function renderWorkouts(){
   var el = document.getElementById('workoutsList');
   if(STATE.workouts.length===0){ el.innerHTML='<div class="empty">Nenhum treino salvo ainda.</div>'; return; }
+  var summary = await getCompletedSummary();
   el.innerHTML = STATE.workouts.map(function(w){
     return '<div class="workout-card">'+
       '<h4>'+w.name+'</h4>'+
       '<div class="meta">'+w.blocks.length+' blocos</div>'+
+      completedBadgeHtml(summary, w.name)+
       '<div class="row"><button class="btn btn-sm" onclick="editWorkout(\''+w.id+'\')">Editar</button>'+
       '<button class="btn btn-sm btn-danger" onclick="deleteWorkout(\''+w.id+'\')">Excluir</button></div>'+
     '</div>';
@@ -671,11 +706,13 @@ async function deleteWorkout(id){
 
 /* ============ RUN PICKER ============ */
 var pendingWorkout = null;
-function renderRunPicker(){
+async function renderRunPicker(){
   var el = document.getElementById('runPicker');
   if(STATE.workouts.length===0){ el.innerHTML='<div class="empty">Crie um treino na aba Treinos primeiro.</div>'; return; }
+  var summary = await getCompletedSummary();
   el.innerHTML = STATE.workouts.map(function(w){
     return '<div class="workout-card"><h4>'+w.name+'</h4><div class="meta">'+w.blocks.length+' blocos</div>'+
+      completedBadgeHtml(summary, w.name)+
       '<button class="btn btn-primary btn-block btn-sm" onclick="pickWorkout(\''+w.id+'\')">Selecionar</button></div>';
   }).join('');
   var freeSel = document.getElementById('freeZoneSelect');
@@ -911,18 +948,22 @@ function updateRunUI(pace, zone, block){
   document.getElementById('statBlockRemain').textContent = remain;
 }
 
-function advanceBlock(){
+function advanceBlock(reason){
   var block = currentBlock();
   var zone = zoneById(block.zoneId);
-  var avgPace = block.type==='time' ? (RUN.blockTimeSec>0 ? null : null) : null;
-  // registra resultado do bloco
+  // registra resultado do bloco, incluindo POR QUE ele terminou —
+  // sem isso, não dá pra provar depois se foi tempo/distância batidos
+  // ou um toque em "pular", como ficou ambíguo numa sessão real.
   RUN.log.push({
     label: block.label,
     zoneName: zone?zone.name:'',
     targetMin: zone?zone.min:null,
     targetMax: zone?zone.max:null,
     timeSec: RUN.blockTimeSec,
-    distanceM: Math.round(RUN.blockDistance)
+    distanceM: Math.round(RUN.blockDistance),
+    reason: reason || (block.type==='time' ? 'tempo-completo' : 'distancia-completa'),
+    prescribedType: block.type,
+    prescribedValue: block.value
   });
   RUN.blockIndex += 1;
   RUN.blockTimeSec = 0;
@@ -937,7 +978,7 @@ function advanceBlock(){
     toast('Próximo: '+currentBlock().label);
   }
 }
-function skipBlock(){ if(RUN && !RUN.paused) advanceBlock(); }
+function skipBlock(){ if(RUN && !RUN.paused) advanceBlock('pulado-manualmente'); }
 
 function togglePause(){
   if(!RUN) return;
@@ -959,7 +1000,10 @@ async function finishRun(){
     RUN.log.push({
       label: block.label, zoneName: zone?zone.name:'',
       targetMin: zone?zone.min:null, targetMax: zone?zone.max:null,
-      timeSec: RUN.blockTimeSec, distanceM: Math.round(RUN.blockDistance)
+      timeSec: RUN.blockTimeSec, distanceM: Math.round(RUN.blockDistance),
+      reason: 'sessao-encerrada-aqui',
+      prescribedType: block.type,
+      prescribedValue: block.value
     });
   }
   stopGeolocation(); stopTicker();
@@ -1001,10 +1045,24 @@ async function renderHistory(){
     var blocksHtml = s.blocks.map(function(b){
       var actualPace = b.distanceM>0 ? (b.timeSec/(b.distanceM/1000)) : null;
       var inRange = actualPace!=null && b.targetMin!=null && actualPace>=b.targetMin && actualPace<=b.targetMax;
-      return '<div class="split-row"><span>'+b.label+'</span><span class="'+(actualPace==null?'':(inRange?'ok':'bad'))+'">'+
+      var rawTag = '<div style="font-size:11px; color:var(--muted); margin-top:2px;">'+
+        Math.round(b.distanceM)+'m em '+secToClock(b.timeSec)+
+        (b.prescribedType==='time' ? ' (previsto: '+secToClock(b.prescribedValue)+')' :
+         b.prescribedType==='distance' ? ' (previsto: '+b.prescribedValue+'m)' :
+         ' (sessão anterior à checagem — sem valor previsto registrado)')+
+        '</div>';
+      var reasonTag = '';
+      if(b.reason === 'pulado-manualmente'){
+        reasonTag = '<div style="font-size:11px; color:var(--yellow); margin-top:2px;">⚠ Pulado manualmente</div>';
+      } else if(b.reason === 'sessao-encerrada-aqui'){
+        reasonTag = '<div style="font-size:11px; color:var(--red); margin-top:2px;">⚠ Sessão encerrada durante este bloco</div>';
+      } else if(!b.reason){
+        reasonTag = '<div style="font-size:11px; color:var(--muted); margin-top:2px;">Sessão gravada antes da checagem de integridade — motivo de término desconhecido</div>';
+      }
+      return '<div class="split-row" style="display:block;"><div style="display:flex; justify-content:space-between;"><span>'+b.label+'</span><span class="'+(actualPace==null?'':(inRange?'ok':'bad'))+'">'+
         (actualPace!=null ? secToPace(actualPace)+'/km' : secToClock(b.timeSec))+
         (b.targetMin!=null ? ' (alvo '+secToPace(b.targetMin)+'–'+secToPace(b.targetMax)+')' : '')+
-        '</span></div>';
+        '</span></div>'+rawTag+reasonTag+'</div>';
     }).join('');
     return '<div class="session-item" onclick="toggleSession('+idx+')">'+
       '<div class="date">'+s.workoutName+'</div>'+
