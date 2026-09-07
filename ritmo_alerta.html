@@ -310,17 +310,33 @@ function toast(msg){
 }
 
 /* ============ STORAGE ============ */
+// Armazenamento real do navegador (localStorage) — funciona porque este
+// arquivo roda como página normal hospedada no GitHub Pages, fora do
+// ambiente do Claude. window.storage (usado antes) só existe dentro do
+// Claude e nunca funcionou aqui, por isso nada persistia entre sessões.
+var STORAGE_PREFIX = 'ritmoalerta:';
 async function storeGet(key){
-  try{ var r = await window.storage.get(key, false); return r ? JSON.parse(r.value) : null; }
-  catch(e){ return null; }
+  try{
+    var v = localStorage.getItem(STORAGE_PREFIX+key);
+    return v!=null ? JSON.parse(v) : null;
+  }catch(e){ return null; }
 }
 async function storeSet(key, value){
-  try{ await window.storage.set(key, JSON.stringify(value), false); return true; }
-  catch(e){ console.error('storage set failed', e); return false; }
+  try{
+    localStorage.setItem(STORAGE_PREFIX+key, JSON.stringify(value));
+    return true;
+  }catch(e){ console.error('storage set failed', e); return false; }
 }
 async function storeList(prefix){
-  try{ var r = await window.storage.list(prefix, false); return r ? r.keys : []; }
-  catch(e){ return []; }
+  try{
+    var fullPrefix = STORAGE_PREFIX+prefix;
+    var keys = [];
+    for(var i=0;i<localStorage.length;i++){
+      var k = localStorage.key(i);
+      if(k && k.indexOf(fullPrefix)===0){ keys.push(k.substring(STORAGE_PREFIX.length)); }
+    }
+    return keys;
+  }catch(e){ return []; }
 }
 // Tenta salvar algumas vezes com espera crescente — cobre falhas momentâneas
 // de sincronização sem travar a interface nem perder o que o usuário fez.
