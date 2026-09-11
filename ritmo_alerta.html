@@ -921,7 +921,10 @@ function tick(){
     }
   }
 
-  if(done) advanceBlock();
+  if(done){
+    var reasonAuto = block.type==='time' ? 'tempo-completo' : 'distancia-completa';
+    advanceBlock(reasonAuto);
+  }
 }
 
 function statusFromPace(pace, zone){
@@ -994,7 +997,17 @@ function advanceBlock(reason){
     toast('Próximo: '+currentBlock().label);
   }
 }
-function skipBlock(){ if(RUN && !RUN.paused) advanceBlock('pulado-manualmente'); }
+function skipBlock(){ 
+  if(!RUN || RUN.paused) return;
+  var block = currentBlock();
+  if(!block) return;
+  // Confirmação obrigatória — não dá pra pular sem aviso, evita toques acidentais
+  // especialmente em momentos críticos como trechos fortes finais
+  if(!confirm('Deseja realmente pular o bloco "'+block.label+'"?\n\nEssa ação não pode ser desfeita.')){
+    return;
+  }
+  advanceBlock('pulado-manualmente');
+}
 
 function togglePause(){
   if(!RUN) return;
