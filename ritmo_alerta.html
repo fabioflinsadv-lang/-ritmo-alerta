@@ -365,7 +365,11 @@ var DEFAULT_ZONES = [
   {id:'intervalado_s4', name:'Intervalado (Sem.4)', min:280, max:290, color:'#d43f3f'},
   {id:'tempo_s2', name:'Tempo (Sem.2)', min:295, max:305, color:'#E8551D'},
   {id:'tempo_s3', name:'Tempo (Sem.3 final)', min:290, max:300, color:'#E8551D'},
-  {id:'moderado_s3', name:'Moderado (Sem.3 transição)', min:315, max:335, color:'#4c8bf5'}
+  {id:'moderado_s3', name:'Moderado (Sem.3 transição)', min:315, max:335, color:'#4c8bf5'},
+  {id:'prova_km1', name:'Prova - Km 1 (contenção)', min:292, max:295, color:'#F2B705'},
+  {id:'prova_km2', name:'Prova - Km 2', min:288, max:290, color:'#F2B705'},
+  {id:'prova_km3_4', name:'Prova - Km 3-4', min:287, max:290, color:'#F2B705'},
+  {id:'prova_km5', name:'Prova - Km 5 (empurrar)', min:275, max:285, color:'#d43f3f'}
 ];
 function defaultWorkouts(){
   return [
@@ -509,7 +513,11 @@ function defaultWorkouts(){
     ]},
     {id:'w18', name:'Semana 6 · Teste Final (5km)', blocks:[
       {label:'Aquecimento', type:'time', value:600, zoneId:'facil'},
-      {label:'Prova 5km', type:'distance', value:5000, zoneId:'alvo'}
+      {label:'Km 1 (contenção)', type:'distance', value:1000, zoneId:'prova_km1'},
+      {label:'Km 2', type:'distance', value:1000, zoneId:'prova_km2'},
+      {label:'Km 3', type:'distance', value:1000, zoneId:'prova_km3_4'},
+      {label:'Km 4', type:'distance', value:1000, zoneId:'prova_km3_4'},
+      {label:'Km 5 (empurrar)', type:'distance', value:1000, zoneId:'prova_km5'}
     ]}
   ];
 }
@@ -789,8 +797,31 @@ function haversine(lat1, lon1, lat2, lon2){
   return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
+// Wake Lock: impede a tela de apagar sozinha durante a corrida.
+// Não é o mesmo que "rodar em segundo plano" — se você trocar de app
+// manualmente, ainda suspende. Mas resolve o caso mais comum: tela
+// apagando por inatividade com o celular no bolso/braçadeira.
+var wakeLock = null;
+async function acquireWakeLock(){
+  try{
+    if('wakeLock' in navigator){
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', function(){ wakeLock = null; });
+    }
+  }catch(e){ console.log('wake lock indisponível', e); }
+}
+function releaseWakeLock(){
+  try{ if(wakeLock){ wakeLock.release(); wakeLock = null; } }catch(e){}
+}
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'visible' && RUN && !RUN.paused){
+    acquireWakeLock();
+  }
+});
+
 function confirmStart(isFree, workoutId){
   unlockAudio(); // primeiro som criado aqui, síncrono com o toque — não dentro do timer
+  acquireWakeLock();
   var workout;
   if(isFree){
     var zid = document.getElementById('freeZoneSelect').value;
@@ -924,7 +955,32 @@ function tick(){
   if(done){
     var reasonAuto = block.type==='time' ? 'tempo-completo' : 'distancia-completa';
     advanceBlock(reasonAuto);
+  } else if(RUN && RUN.totalTimeSec % 10 === 0){
+    // Snapshot de recuperação: se o navegador for encerrado pelo sistema
+    // (troca de app, MIUI matando a aba) antes do fim normal, isso permite
+    // recuperar o que já foi corrido em vez de perder a sessão inteira.
+    saveInProgressSnapshot();
   }
+}
+async function saveInProgressSnapshot(){
+  if(!RUN) return;
+  try{
+    await storeSet('inprogress:session', {
+      workoutName: RUN.workout.name,
+      startedAt: RUN.startedAt,
+      totalTimeSec: RUN.totalTimeSec,
+      totalDistanceM: Math.round(RUN.totalDistance),
+      log: RUN.log,
+      currentBlockLabel: currentBlock() ? currentBlock().label : null,
+      currentBlockTimeSec: RUN.blockTimeSec,
+      currentBlockDistanceM: Math.round(RUN.blockDistance),
+      currentBlockPrescribedType: currentBlock() ? currentBlock().type : null,
+      currentBlockPrescribedValue: currentBlock() ? currentBlock().value : null
+    });
+  }catch(e){}
+}
+async function clearInProgressSnapshot(){
+  try{ await storeSet('inprogress:session', null); }catch(e){}
 }
 
 function statusFromPace(pace, zone){
@@ -995,6 +1051,7 @@ function advanceBlock(reason){
     finishRun();
   } else {
     toast('Próximo: '+currentBlock().label);
+    saveInProgressSnapshot();
   }
 }
 function skipBlock(){ 
@@ -1022,6 +1079,7 @@ function confirmStop(){
 }
 
 async function finishRun(){
+  releaseWakeLock();
   // fecha bloco atual se ainda não foi logado (parada manual no meio do bloco)
   var block = currentBlock();
   if(block && (RUN.blockTimeSec>0 || RUN.blockDistance>0) && (!RUN.log.length || RUN.log[RUN.log.length-1].label!==block.label)){
@@ -1045,6 +1103,7 @@ async function finishRun(){
   };
   LOCAL_SESSIONS.push(session);
   var ok = await storeSetRetry('sessions:'+RUN.startedAt, session);
+  await clearInProgressSnapshot();
   toast(ok ? 'Sessão salva no histórico' : 'Sessão guardada nesta sessão (falha ao sincronizar)');
   closeRunScreenOnly();
   RUN = null;
@@ -1106,11 +1165,66 @@ function toggleSession(idx){
 }
 
 /* ============ INIT ============ */
+// Migração pontual: se o Teste Final de 5km ainda estiver no formato antigo
+// (um único bloco de 5000m), substitui pela versão com ritmo específico por
+// km definido na estratégia de prova — sem mexer em nada mais que o usuário
+// tenha customizado.
+function migrateTestFinalShape(){
+  var idx = STATE.workouts.findIndex(function(w){ return w.id === 'w18'; });
+  if(idx === -1) return false;
+  var w = STATE.workouts[idx];
+  var isOldShape = w.blocks.length === 2 && w.blocks[1] && w.blocks[1].value === 5000;
+  if(!isOldShape) return false;
+  var novo = defaultWorkouts().find(function(w2){ return w2.id === 'w18'; });
+  STATE.workouts[idx] = novo;
+  return true;
+}
+
 (async function init(){
   await loadConfig();
+  if(migrateTestFinalShape()){
+    await storeSetRetry('config:workouts', STATE.workouts);
+  }
   renderZones();
   renderWorkouts();
+  await checkForRecoverableSession();
 })();
+
+// Se a última corrida foi interrompida por fechamento inesperado (troca de
+// app, sistema encerrando a aba), o snapshot incremental permite recuperar
+// o que já tinha sido registrado em vez de perder a sessão inteira.
+async function checkForRecoverableSession(){
+  try{
+    var snap = await storeGet('inprogress:session');
+    if(!snap) return;
+    var resumo = 'Uma sessão anterior ("'+snap.workoutName+'") parece ter sido interrompida antes de terminar.\n\n'+
+      'Registrado até a interrupção: '+fmtKm(snap.totalDistanceM/1000)+' em '+secToClock(snap.totalTimeSec)+'.\n\n'+
+      'Deseja salvar esse progresso parcial no Histórico?';
+    if(!confirm(resumo)) { await clearInProgressSnapshot(); return; }
+    var blocks = snap.log.slice();
+    if(snap.currentBlockLabel && (snap.currentBlockTimeSec>0 || snap.currentBlockDistanceM>0)){
+      blocks.push({
+        label: snap.currentBlockLabel, zoneName: '', targetMin: null, targetMax: null,
+        timeSec: snap.currentBlockTimeSec, distanceM: snap.currentBlockDistanceM,
+        reason: 'app-encerrado-inesperadamente',
+        prescribedType: snap.currentBlockPrescribedType,
+        prescribedValue: snap.currentBlockPrescribedValue
+      });
+    }
+    var session = {
+      date: snap.startedAt,
+      workoutName: snap.workoutName+' (recuperada)',
+      totalTimeSec: snap.totalTimeSec,
+      totalDistanceM: snap.totalDistanceM,
+      blocks: blocks
+    };
+    LOCAL_SESSIONS.push(session);
+    await storeSetRetry('sessions:'+snap.startedAt, session);
+    await clearInProgressSnapshot();
+    renderHistory();
+    toast('Sessão parcial recuperada e salva no histórico');
+  }catch(e){ console.log('recuperação de sessão falhou', e); }
+}
 
 /* ============ PWA: registra o service worker (funciona só sob HTTPS) ============ */
 if('serviceWorker' in navigator){
