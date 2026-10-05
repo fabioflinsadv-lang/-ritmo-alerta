@@ -369,7 +369,13 @@ var DEFAULT_ZONES = [
   {id:'prova_km1', name:'Prova - Km 1 (contenção)', min:292, max:295, color:'#F2B705'},
   {id:'prova_km2', name:'Prova - Km 2', min:288, max:290, color:'#F2B705'},
   {id:'prova_km3_4', name:'Prova - Km 3-4', min:287, max:290, color:'#F2B705'},
-  {id:'prova_km5', name:'Prova - Km 5 (empurrar)', min:275, max:285, color:'#d43f3f'}
+  {id:'prova_km5', name:'Prova - Km 5 (empurrar)', min:275, max:285, color:'#d43f3f'},
+  {id:'facil_f1', name:'Fácil (Rumo ao Sub-22 · Fase 1)', min:350, max:380, color:'#4C8BF5'},
+  {id:'moderado_f1', name:'Moderado (Fase 1 · Fartlek)', min:315, max:340, color:'#4c8bf5'},
+  {id:'tempo_f1_s3', name:'Tempo (Fase 1 · Sem.3)', min:300, max:310, color:'#E8551D'},
+  {id:'tempo_f1_s4', name:'Tempo (Fase 1 · Sem.4)', min:295, max:305, color:'#E8551D'},
+  {id:'tempo_f1_s5', name:'Tempo (Fase 1 · Sem.5)', min:295, max:300, color:'#E8551D'},
+  {id:'moderado_longao_s4', name:'Moderado (Fase 1 · Final Longão Sem.4)', min:330, max:350, color:'#4c8bf5'}
 ];
 function defaultWorkouts(){
   return [
@@ -518,6 +524,103 @@ function defaultWorkouts(){
       {label:'Km 3', type:'distance', value:1000, zoneId:'prova_km3_4'},
       {label:'Km 4', type:'distance', value:1000, zoneId:'prova_km3_4'},
       {label:'Km 5 (empurrar)', type:'distance', value:1000, zoneId:'prova_km5'}
+    ]},
+    {id:'w19', name:'Sub-22 · Sem.1 · Treino A (Fácil 25min)', blocks:[
+      {label:'Corrida Fácil (+4x20s strides ao final, não cronometradas)', type:'time', value:1500, zoneId:'facil_f1'}
+    ]},
+    {id:'w20', name:'Sub-22 · Sem.1 · Treino B (Fácil 20min)', blocks:[
+      {label:'Corrida Fácil', type:'time', value:1200, zoneId:'facil_f1'}
+    ]},
+    {id:'w21', name:'Sub-22 · Sem.1 · Treino C (Fácil 30min controlado)', blocks:[
+      {label:'Corrida Fácil', type:'time', value:1800, zoneId:'facil_f1'}
+    ]},
+    {id:'w22', name:'Sub-22 · Sem.1 · Treino D (Longão 35min)', blocks:[
+      {label:'Longão Fácil', type:'time', value:2100, zoneId:'facil_f1'}
+    ]},
+    {id:'w23', name:'Sub-22 · Sem.2 · Treino A (Fácil 28min)', blocks:[
+      {label:'Corrida Fácil (+4x20s strides ao final, não cronometradas)', type:'time', value:1680, zoneId:'facil_f1'}
+    ]},
+    {id:'w24', name:'Sub-22 · Sem.2 · Treino B (Fácil 22min)', blocks:[
+      {label:'Corrida Fácil', type:'time', value:1320, zoneId:'facil_f1'}
+    ]},
+    {id:'w25', name:'Sub-22 · Sem.2 · Treino C (Fácil 32min)', blocks:[
+      {label:'Corrida Fácil (+4x20s strides ao final, não cronometradas)', type:'time', value:1920, zoneId:'facil_f1'}
+    ]},
+    {id:'w26', name:'Sub-22 · Sem.2 · Treino D (Longão 40min)', blocks:[
+      {label:'Longão Fácil', type:'time', value:2400, zoneId:'facil_f1'}
+    ]},
+    {id:'w27', name:'Sub-22 · Sem.3 · Treino A (Fartlek Leve 6x)', blocks:[
+      {label:'Aquecimento', type:'time', value:300, zoneId:'facil_f1'},
+      {label:'Moderado 1', type:'time', value:60, zoneId:'moderado_f1'},
+      {label:'Fácil 1', type:'time', value:60, zoneId:'facil_f1'},
+      {label:'Moderado 2', type:'time', value:60, zoneId:'moderado_f1'},
+      {label:'Fácil 2', type:'time', value:60, zoneId:'facil_f1'},
+      {label:'Moderado 3', type:'time', value:60, zoneId:'moderado_f1'},
+      {label:'Fácil 3', type:'time', value:60, zoneId:'facil_f1'},
+      {label:'Moderado 4', type:'time', value:60, zoneId:'moderado_f1'},
+      {label:'Fácil 4', type:'time', value:60, zoneId:'facil_f1'},
+      {label:'Moderado 5', type:'time', value:60, zoneId:'moderado_f1'},
+      {label:'Fácil 5', type:'time', value:60, zoneId:'facil_f1'},
+      {label:'Moderado 6', type:'time', value:60, zoneId:'moderado_f1'},
+      {label:'Fácil 6', type:'time', value:60, zoneId:'facil_f1'},
+      {label:'Desaquecimento', type:'time', value:300, zoneId:'facil_f1'}
+    ]},
+    {id:'w28', name:'Sub-22 · Sem.3 · Treino B (Fácil 25min)', blocks:[
+      {label:'Corrida Fácil', type:'time', value:1500, zoneId:'facil_f1'}
+    ]},
+    {id:'w29', name:'Sub-22 · Sem.3 · Treino C (Tempo)', blocks:[
+      {label:'Aquecimento', type:'time', value:600, zoneId:'facil_f1'},
+      {label:'Tempo Contínuo', type:'time', value:600, zoneId:'tempo_f1_s3'},
+      {label:'Desaquecimento', type:'time', value:600, zoneId:'facil_f1'}
+    ]},
+    {id:'w30', name:'Sub-22 · Sem.3 · Treino D (Longão 45min)', blocks:[
+      {label:'Longão Fácil', type:'time', value:2700, zoneId:'facil_f1'}
+    ]},
+    {id:'w31', name:'Sub-22 · Sem.4 · Treino A (Fartlek 8x)', blocks:[
+      {label:'Aquecimento', type:'time', value:300, zoneId:'facil_f1'},
+      {label:'Moderado 1', type:'time', value:60, zoneId:'moderado_f1'},
+      {label:'Fácil 1', type:'time', value:60, zoneId:'facil_f1'},
+      {label:'Moderado 2', type:'time', value:60, zoneId:'moderado_f1'},
+      {label:'Fácil 2', type:'time', value:60, zoneId:'facil_f1'},
+      {label:'Moderado 3', type:'time', value:60, zoneId:'moderado_f1'},
+      {label:'Fácil 3', type:'time', value:60, zoneId:'facil_f1'},
+      {label:'Moderado 4', type:'time', value:60, zoneId:'moderado_f1'},
+      {label:'Fácil 4', type:'time', value:60, zoneId:'facil_f1'},
+      {label:'Moderado 5', type:'time', value:60, zoneId:'moderado_f1'},
+      {label:'Fácil 5', type:'time', value:60, zoneId:'facil_f1'},
+      {label:'Moderado 6', type:'time', value:60, zoneId:'moderado_f1'},
+      {label:'Fácil 6', type:'time', value:60, zoneId:'facil_f1'},
+      {label:'Moderado 7', type:'time', value:60, zoneId:'moderado_f1'},
+      {label:'Fácil 7', type:'time', value:60, zoneId:'facil_f1'},
+      {label:'Moderado 8', type:'time', value:60, zoneId:'moderado_f1'},
+      {label:'Fácil 8', type:'time', value:60, zoneId:'facil_f1'},
+      {label:'Desaquecimento', type:'time', value:300, zoneId:'facil_f1'}
+    ]},
+    {id:'w32', name:'Sub-22 · Sem.4 · Treino B (Fácil 25min)', blocks:[
+      {label:'Corrida Fácil', type:'time', value:1500, zoneId:'facil_f1'}
+    ]},
+    {id:'w33', name:'Sub-22 · Sem.4 · Treino C (Tempo)', blocks:[
+      {label:'Aquecimento', type:'time', value:600, zoneId:'facil_f1'},
+      {label:'Tempo Contínuo', type:'time', value:720, zoneId:'tempo_f1_s4'},
+      {label:'Desaquecimento', type:'time', value:600, zoneId:'facil_f1'}
+    ]},
+    {id:'w34', name:'Sub-22 · Sem.4 · Treino D (Longão 48min)', blocks:[
+      {label:'Longão Fácil', type:'time', value:2280, zoneId:'facil_f1'},
+      {label:'Final Moderado', type:'time', value:600, zoneId:'moderado_longao_s4'}
+    ]},
+    {id:'w35', name:'Sub-22 · Sem.5 · Treino A (Fácil 25min, respiro)', blocks:[
+      {label:'Corrida Fácil (+6x20s strides ao final, não cronometradas)', type:'time', value:1500, zoneId:'facil_f1'}
+    ]},
+    {id:'w36', name:'Sub-22 · Sem.5 · Treino B (Fácil 20min, respiro)', blocks:[
+      {label:'Corrida Fácil', type:'time', value:1200, zoneId:'facil_f1'}
+    ]},
+    {id:'w37', name:'Sub-22 · Sem.5 · Treino C (Tempo Curto, respiro)', blocks:[
+      {label:'Aquecimento', type:'time', value:600, zoneId:'facil_f1'},
+      {label:'Tempo Contínuo', type:'time', value:600, zoneId:'tempo_f1_s5'},
+      {label:'Desaquecimento', type:'time', value:600, zoneId:'facil_f1'}
+    ]},
+    {id:'w38', name:'Sub-22 · Sem.5 · Treino D (Longão 40min, respiro)', blocks:[
+      {label:'Longão Fácil', type:'time', value:2400, zoneId:'facil_f1'}
     ]}
   ];
 }
