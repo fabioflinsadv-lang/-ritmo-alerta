@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ritmo-alerta-v1';
+const CACHE_NAME = 'ritmo-alerta-v2';
 const ASSETS = [
   './ritmo_alerta.html',
   './manifest.json',

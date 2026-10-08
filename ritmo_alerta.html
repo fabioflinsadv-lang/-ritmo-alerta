@@ -157,7 +157,7 @@
 <body>
 
 <div class="app-header">
-  <div class="eyebrow">Plano de 6 semanas · Rumo ao 5km</div>
+  <div class="eyebrow">Plano Sub-22 · Fase 1 · versão 2026-10-08b</div>
   <h1>Ritmo Alerta</h1>
 </div>
 
@@ -646,7 +646,10 @@ async function loadConfig(){
   var w = await storeGet('config:workouts');
   var wMerged = mergeDefaults(w || [], defaultWorkouts(), 'id');
   if(!w || wMerged.length !== w.length){ await storeSetRetry('config:workouts', wMerged); }
-  STATE.workouts = wMerged;
+  // Exibição: treinos da fase atual (Sub-22) primeiro, plano antigo depois
+  var novos = wMerged.filter(function(x){ return x.name.indexOf('Sub-22') === 0; });
+  var antigos = wMerged.filter(function(x){ return x.name.indexOf('Sub-22') !== 0; });
+  STATE.workouts = novos.concat(antigos);
 }
 
 function zoneById(id){ return STATE.zones.find(function(z){return z.id===id;}); }
