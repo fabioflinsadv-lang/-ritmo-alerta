@@ -157,7 +157,7 @@
 <body>
 
 <div class="app-header">
-  <div class="eyebrow">Plano Sub-22 · Fase 1 · versão 2026-10-08b</div>
+  <div class="eyebrow">Plano Sub-22 · Fase 1 · versão 2026-10-08c</div>
   <h1>Ritmo Alerta</h1>
 </div>
 
@@ -243,6 +243,20 @@
 
   <!-- HISTORICO -->
   <div class="view" id="view-historico">
+    <div class="card">
+      <h3>Registrar treino feito fora do app</h3>
+      <div class="row">
+        <button class="btn btn-sm" onclick="toggleManualForm()">+ Registro manual</button>
+        <button class="btn btn-sm" onclick="importSem1()">Importar Semana 1 (A, B, D do Runkeeper)</button>
+      </div>
+      <div id="manualForm" style="display:none; margin-top:10px;">
+        <div class="field"><label>Treino</label><select id="manWorkout"></select></div>
+        <div class="field"><label>Data e hora de início</label><input id="manDate" type="datetime-local"></div>
+        <div class="field"><label>Distância (km)</label><input id="manKm" inputmode="decimal" placeholder="5,62"></div>
+        <div class="field"><label>Tempo (mm:ss)</label><input id="manTime" placeholder="30:00"></div>
+        <button class="btn btn-primary btn-block" onclick="saveManual()">Salvar no histórico</button>
+      </div>
+    </div>
     <div class="card">
       <h3>Sessões concluídas</h3>
       <div id="historyList"></div>
@@ -1216,6 +1230,75 @@ async function finishRun(){
   switchTab('historico');
 }
 
+/* ============ REGISTRO MANUAL ============ */
+function toggleManualForm(){
+  var f = document.getElementById('manualForm');
+  var show = f.style.display === 'none';
+  f.style.display = show ? 'block' : 'none';
+  if(show){
+    document.getElementById('manWorkout').innerHTML = STATE.workouts.map(function(w){
+      return '<option value="'+w.id+'">'+w.name+'</option>';
+    }).join('');
+  }
+}
+function parseClockInput(t){
+  var p = String(t).trim().split(':').map(Number);
+  if(p.some(function(x){ return isNaN(x); })) return null;
+  if(p.length===2) return p[0]*60+p[1];
+  if(p.length===3) return p[0]*3600+p[1]*60+p[2];
+  if(p.length===1) return p[0]*60;
+  return null;
+}
+async function addManualSession(workoutId, dateIso, km, timeSec){
+  var w = STATE.workouts.find(function(x){ return x.id===workoutId; });
+  if(!w) return false;
+  var z = null;
+  if(w.blocks.length===1){ z = STATE.zones.find(function(x){ return x.id===w.blocks[0].zoneId; }); }
+  var dist = Math.round(km*1000);
+  var session = {
+    date: dateIso,
+    workoutName: w.name,
+    manual: true,
+    totalTimeSec: timeSec,
+    totalDistanceM: dist,
+    blocks: [{
+      label: 'Registro manual (feito em outro app)',
+      timeSec: timeSec, distanceM: dist,
+      targetMin: z ? z.min : null, targetMax: z ? z.max : null,
+      reason: 'registro-manual', prescribedType: 'manual', prescribedValue: null
+    }]
+  };
+  LOCAL_SESSIONS.push(session);
+  return await storeSetRetry('sessions:'+dateIso, session);
+}
+async function saveManual(){
+  var wid = document.getElementById('manWorkout').value;
+  var dv = document.getElementById('manDate').value;
+  var km = parseFloat(String(document.getElementById('manKm').value).replace(',','.'));
+  var ts = parseClockInput(document.getElementById('manTime').value);
+  if(!dv || !(km>0) || !(ts>0)){ toast('Preencha data, distância e tempo'); return; }
+  var ok = await addManualSession(wid, new Date(dv).toISOString(), km, ts);
+  toast(ok ? 'Treino registrado' : 'Guardado só nesta sessão (falha ao sincronizar)');
+  document.getElementById('manualForm').style.display='none';
+  renderHistory();
+}
+async function importSem1(){
+  if(!confirm('Importar A (05/10), B (06/10) e D (08/10) da Semana 1, com os dados do Runkeeper?')) return;
+  var items = [
+    ['w19','2026-10-05T12:45:00.000Z',4.24,25*60+14],
+    ['w20','2026-10-06T11:14:00.000Z',3.40,20*60+12],
+    ['w22','2026-10-08T10:51:00.000Z',5.83,35*60+8]
+  ];
+  var n = 0;
+  for(var i=0;i<items.length;i++){
+    var existing = await storeGet('sessions:'+items[i][1]);
+    if(existing) continue;
+    if(await addManualSession(items[i][0], items[i][1], items[i][2], items[i][3])) n++;
+  }
+  toast(n+' treino(s) importado(s). Registre o Dia C pelo botão manual.');
+  renderHistory();
+}
+
 /* ============ HISTORY ============ */
 async function renderHistory(){
   var el = document.getElementById('historyList');
@@ -1241,7 +1324,8 @@ async function renderHistory(){
       var inRange = actualPace!=null && b.targetMin!=null && actualPace>=b.targetMin && actualPace<=b.targetMax;
       var rawTag = '<div style="font-size:11px; color:var(--muted); margin-top:2px;">'+
         Math.round(b.distanceM)+'m em '+secToClock(b.timeSec)+
-        (b.prescribedType==='time' ? ' (previsto: '+secToClock(b.prescribedValue)+')' :
+        (b.prescribedType==='manual' ? ' (registrado manualmente)' :
+         b.prescribedType==='time' ?' (previsto: '+secToClock(b.prescribedValue)+')' :
          b.prescribedType==='distance' ? ' (previsto: '+b.prescribedValue+'m)' :
          ' (sessão anterior à checagem — sem valor previsto registrado)')+
         '</div>';
@@ -1250,6 +1334,8 @@ async function renderHistory(){
         reasonTag = '<div style="font-size:11px; color:var(--yellow); margin-top:2px;">⚠ Pulado manualmente</div>';
       } else if(b.reason === 'sessao-encerrada-aqui'){
         reasonTag = '<div style="font-size:11px; color:var(--red); margin-top:2px;">⚠ Sessão encerrada durante este bloco</div>';
+      } else if(b.reason === 'registro-manual'){
+        reasonTag = '';
       } else if(!b.reason){
         reasonTag = '<div style="font-size:11px; color:var(--muted); margin-top:2px;">Sessão gravada antes da checagem de integridade — motivo de término desconhecido</div>';
       }
