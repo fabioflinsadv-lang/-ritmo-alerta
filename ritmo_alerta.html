@@ -157,7 +157,7 @@
 <body>
 
 <div class="app-header">
-  <div class="eyebrow">Plano Sub-22 · Fase 1 · versão 2026-10-08c</div>
+  <div class="eyebrow">Plano Sub-22 · Fase 1 · versão 2026-10-15c</div>
   <h1>Ritmo Alerta</h1>
 </div>
 
@@ -254,6 +254,7 @@
         <div class="field"><label>Data e hora de início</label><input id="manDate" type="datetime-local"></div>
         <div class="field"><label>Distância (km)</label><input id="manKm" inputmode="decimal" placeholder="5,62"></div>
         <div class="field"><label>Tempo (mm:ss)</label><input id="manTime" placeholder="30:00"></div>
+        <div class="field"><label>Parciais por km (opcional — pace de cada km, separados por espaço ou vírgula)</label><input id="manSplits" placeholder="6:05 5:58 5:57 6:01"></div>
         <button class="btn btn-primary btn-block" onclick="saveManual()">Salvar no histórico</button>
       </div>
     </div>
@@ -695,6 +696,8 @@ async function getCompletedSummary(){
   });
   var summary = {};
   sessions.forEach(function(s){
+    // sessões abortadas (menos de 2 min) não contam como treino concluído
+    if(!s.manual && s.totalTimeSec < 120) return;
     if(!summary[s.workoutName]) summary[s.workoutName] = {count:0, lastDate:null};
     summary[s.workoutName].count += 1;
     if(!summary[s.workoutName].lastDate || new Date(s.date) > new Date(summary[s.workoutName].lastDate)){
@@ -962,6 +965,7 @@ function confirmStart(isFree, workoutId){
     lastAlertStatus: 'target',
     lastReminderAt: 0,
     log: [],
+    splits: [], splitStartSec: 0, zoneSec: {},
     startedAt: new Date().toISOString()
   };
   document.getElementById('freeZonePickCard').style.display='none';
@@ -1004,20 +1008,47 @@ function onPosition(pos){
   if(prev){
     var dt = (pt.t - prev.t)/1000;
     var d = haversine(prev.lat, prev.lng, pt.lat, pt.lng);
-    var speed = dt>0 ? d/dt : 0;
-    // Não filtramos mais por precisão bruta (isso travava o app com GPS
-    // indoor/inicial, que costuma reportar 50-100m antes de melhorar).
-    // Em vez disso, descartamos apenas saltos fisicamente implausíveis
-    // (mais rápido que ~29km/h), que são ruído de GPS, não corrida real.
-    if(dt<=0 || speed>8){ return; }
-    RUN.totalDistance += d;
-    RUN.blockDistance += d;
+    var posSpeed = dt>0 ? d/dt : 0;
+    // Não filtramos por precisão bruta (isso travava o app com GPS
+    // indoor/inicial). Descartamos só saltos implausíveis (>~29km/h).
+    if(dt<=0 || posSpeed>8){ return; }
+    var acc = (typeof c.accuracy === 'number') ? c.accuracy : 20;
+    // Somar a distância ponto a ponto de leituras com ruído INFLA a distância
+    // (o GPS "treme" em volta da posição real). Duas correções:
+    // 1) se o aparelho informa a velocidade (efeito Doppler, bem mais estável
+    //    que a diferença entre posições), usa velocidade x tempo;
+    // 2) senão, ignora deslocamentos menores que o ruído e mantém a âncora.
+    var hasSpeed = (typeof c.speed === 'number' && !isNaN(c.speed) && c.speed >= 0 && acc <= 35);
+    var step, instSpeed;
+    if(hasSpeed){
+      instSpeed = c.speed < 0.5 ? 0 : c.speed;
+      step = instSpeed * dt;
+    } else {
+      var thr = Math.max(4, acc * 0.5);
+      if(d < thr){ return; }   // dentro do ruído: não move a âncora, não soma
+      step = d;
+      instSpeed = posSpeed;
+    }
+    RUN.speedEMA = (RUN.speedEMA == null) ? instSpeed : (0.7*RUN.speedEMA + 0.3*instSpeed);
+    RUN.lastSpeedAt = Date.now();
+    RUN.totalDistance += step;
+    RUN.blockDistance += step;
+    // parcial por km: registra cada vez que cruza um múltiplo de 1000 m
+    while(RUN.totalDistance >= (RUN.splits.length + 1) * 1000){
+      RUN.splits.push({ km: RUN.splits.length + 1, distM: 1000, timeSec: Math.max(1, RUN.totalTimeSec - RUN.splitStartSec) });
+      RUN.splitStartSec = RUN.totalTimeSec;
+    }
   }
   RUN.points.push(pt);
   if(RUN.points.length>60) RUN.points.shift();
 }
 
 function currentPace(){
+  // Ritmo instantâneo a partir da velocidade suavizada (menos sujeito a ruído).
+  if(RUN.speedEMA != null && RUN.lastSpeedAt && (Date.now() - RUN.lastSpeedAt) < 8000){
+    if(RUN.speedEMA < 0.8) return null;           // praticamente parado
+    return 1000 / RUN.speedEMA;                    // seg/km
+  }
   if(RUN.points.length<2) return null;
   var now = RUN.points[RUN.points.length-1];
   var windowMs = 12000;
@@ -1049,6 +1080,10 @@ function tick(){
   var block = currentBlock();
   var zone = zoneById(block.zoneId);
   var pace = currentPace();
+
+  // tempo em cada zona de análise (segundo a segundo, pelo ritmo atual)
+  var zk = (pace != null) ? analysisZoneIdx(pace) : 'x';
+  RUN.zoneSec[zk] = (RUN.zoneSec[zk] || 0) + 1;
 
   // checa avanço automático de bloco
   var done = false;
@@ -1091,6 +1126,7 @@ async function saveInProgressSnapshot(){
       totalTimeSec: RUN.totalTimeSec,
       totalDistanceM: Math.round(RUN.totalDistance),
       log: RUN.log,
+      splits: RUN.splits, zoneSec: RUN.zoneSec,
       currentBlockLabel: currentBlock() ? currentBlock().label : null,
       currentBlockTimeSec: RUN.blockTimeSec,
       currentBlockDistanceM: Math.round(RUN.blockDistance),
@@ -1214,12 +1250,20 @@ async function finishRun(){
     });
   }
   stopGeolocation(); stopTicker();
+  // último km parcial (se rodou pelo menos 50 m depois da última parcial)
+  var remM = RUN.totalDistance - RUN.splits.length * 1000;
+  var remT = RUN.totalTimeSec - RUN.splitStartSec;
+  if(remM >= 50 && remT > 0){
+    RUN.splits.push({ km: RUN.splits.length + 1, distM: Math.round(remM), timeSec: remT });
+  }
   var session = {
     date: RUN.startedAt,
     workoutName: RUN.workout.name,
     totalTimeSec: RUN.totalTimeSec,
     totalDistanceM: Math.round(RUN.totalDistance),
-    blocks: RUN.log
+    blocks: RUN.log,
+    splits: RUN.splits,
+    zoneSec: RUN.zoneSec
   };
   LOCAL_SESSIONS.push(session);
   var ok = await storeSetRetry('sessions:'+RUN.startedAt, session);
@@ -1228,6 +1272,102 @@ async function finishRun(){
   closeRunScreenOnly();
   RUN = null;
   switchTab('historico');
+}
+
+/* ============ ANÁLISE: PARCIAIS POR KM E TEMPO POR ZONA ============ */
+// Zonas de análise contínuas, consolidadas a partir das faixas do plano
+// (as zonas de treino se sobrepõem entre fases, então não servem para
+// classificar cada segundo de corrida sem ambiguidade).
+var ANALYSIS_ZONES = [
+  { name:'Recuperação', range:'mais lento que 6:20', color:'#7A8794' },
+  { name:'Fácil',       range:'5:50–6:20', color:'#4C8BF5' },
+  { name:'Moderado',    range:'5:15–5:50', color:'#2FB67C' },
+  { name:'Tempo/limiar',range:'4:45–5:15', color:'#F2B705' },
+  { name:'Ritmo de prova', range:'4:20–4:45', color:'#E8571C' },
+  { name:'Velocidade',  range:'mais rápido que 4:20', color:'#D6336C' }
+];
+function analysisZoneIdx(paceSec){
+  if(paceSec > 380) return 0;
+  if(paceSec >= 350) return 1;
+  if(paceSec >= 315) return 2;
+  if(paceSec >= 285) return 3;
+  if(paceSec >= 260) return 4;
+  return 5;
+}
+function buildAnalysisHtml(s){
+  var splits = s.splits || [];
+  var html = '';
+  if(splits.length){
+    var paces = splits.map(function(sp){ return sp.timeSec / (sp.distM/1000); });
+    var full = splits.filter(function(sp){ return sp.distM >= 950; });
+    var fullPaces = full.map(function(sp){ return sp.timeSec / (sp.distM/1000); });
+    var maxP = Math.max.apply(null, paces), minP = Math.min.apply(null, paces);
+    html += '<div style="font-weight:700; font-size:12px; margin:10px 0 4px;">Parciais por km</div>';
+    splits.forEach(function(sp, i){
+      var p = paces[i];
+      var z = ANALYSIS_ZONES[analysisZoneIdx(p)];
+      var w = maxP > minP ? 40 + 60 * (maxP - p) / (maxP - minP) : 70; // barra maior = mais rápido
+      var partial = sp.distM < 950 ? ' ('+Math.round(sp.distM)+' m)' : '';
+      html += '<div style="display:flex; align-items:center; gap:8px; font-size:12px; margin:3px 0;">'+
+        '<span style="width:46px; color:var(--muted);">Km '+sp.km+partial+'</span>'+
+        '<span style="width:46px; font-weight:700;">'+secToPace(p)+'</span>'+
+        '<span style="flex:1;"><span style="display:block; height:8px; width:'+w+'%; background:'+z.color+'; border-radius:4px;"></span></span>'+
+        '<span style="width:84px; text-align:right; color:'+z.color+';">'+z.name+'</span></div>';
+    });
+    if(fullPaces.length >= 2){
+      var best = Math.min.apply(null, fullPaces), worst = Math.max.apply(null, fullPaces);
+      var half = Math.floor(fullPaces.length/2);
+      var avg1 = fullPaces.slice(0, half).reduce(function(a,b){return a+b;},0)/half;
+      var avg2 = fullPaces.slice(fullPaces.length-half).reduce(function(a,b){return a+b;},0)/half;
+      var tipo = avg2 < avg1 - 3 ? 'negativo (acelerou)' : (avg2 > avg1 + 3 ? 'positivo (desacelerou)' : 'regular');
+      html += '<div style="font-size:11px; color:var(--muted); margin-top:4px;">Mais rápido: '+secToPace(best)+'/km · mais lento: '+secToPace(worst)+'/km · variação: '+Math.round(worst-best)+'s · perfil '+tipo+'</div>';
+    }
+  }
+  // tempo por zona: prefere a medição segundo a segundo; senão estima pelas parciais
+  var zs = {}, estimated = false, measured = 0;
+  if(s.zoneSec && Object.keys(s.zoneSec).some(function(k){ return k !== 'x'; })){
+    Object.keys(s.zoneSec).forEach(function(k){
+      if(k === 'x') return;
+      zs[k] = s.zoneSec[k]; measured += s.zoneSec[k];
+    });
+  } else if(splits.length){
+    estimated = true;
+    splits.forEach(function(sp){
+      var k = analysisZoneIdx(sp.timeSec / (sp.distM/1000));
+      zs[k] = (zs[k] || 0) + sp.timeSec; measured += sp.timeSec;
+    });
+  }
+  if(measured > 0){
+    var domK = null;
+    Object.keys(zs).forEach(function(k){ if(domK === null || zs[k] > zs[domK]) domK = k; });
+    html += '<div style="font-weight:700; font-size:12px; margin:12px 0 4px;">Tempo por zona'+(estimated ? ' (estimado pelas parciais por km)' : '')+'</div>';
+    ANALYSIS_ZONES.forEach(function(z, i){
+      var sec = zs[i] || 0;
+      if(!sec) return;
+      var pct = Math.round(100 * sec / measured);
+      html += '<div style="display:flex; align-items:center; gap:8px; font-size:12px; margin:3px 0;">'+
+        '<span style="width:92px; color:'+z.color+'; font-weight:'+(String(i)===domK?'700':'400')+';">'+z.name+'</span>'+
+        '<span style="flex:1;"><span style="display:block; height:8px; width:'+Math.max(pct,2)+'%; background:'+z.color+'; border-radius:4px;"></span></span>'+
+        '<span style="width:78px; text-align:right;">'+secToClock(sec)+' · '+pct+'%</span></div>';
+    });
+    var dz = ANALYSIS_ZONES[domK];
+    html += '<div style="font-size:11px; color:var(--muted); margin-top:4px;">Zona predominante: <b>'+dz.name+'</b> ('+dz.range+'/km), '+Math.round(100*zs[domK]/measured)+'% do tempo medido.</div>';
+  }
+  return html;
+}
+function parseSplitsInput(txt, km, totalSec){
+  var arr = String(txt||'').trim().split(/[\s,;]+/).filter(Boolean).map(function(t){
+    var p = String(t).split(':').map(Number);
+    if(p.length !== 2 || p.some(isNaN)) return null;
+    return p[0]*60 + p[1];
+  });
+  if(!arr.length || arr.some(function(x){ return x == null || x <= 0; })) return null;
+  var out = [], fullKm = Math.floor(km), remM = Math.round(km*1000 - fullKm*1000);
+  for(var i=0;i<arr.length;i++){
+    if(i < fullKm) out.push({ km:i+1, distM:1000, timeSec:arr[i] });
+    else if(i === fullKm && remM >= 50) out.push({ km:i+1, distM:remM, timeSec:Math.round(arr[i]*remM/1000) });
+  }
+  return out.length ? out : null;
 }
 
 /* ============ REGISTRO MANUAL ============ */
@@ -1249,7 +1389,7 @@ function parseClockInput(t){
   if(p.length===1) return p[0]*60;
   return null;
 }
-async function addManualSession(workoutId, dateIso, km, timeSec){
+async function addManualSession(workoutId, dateIso, km, timeSec, splits){
   var w = STATE.workouts.find(function(x){ return x.id===workoutId; });
   if(!w) return false;
   var z = null;
@@ -1259,6 +1399,7 @@ async function addManualSession(workoutId, dateIso, km, timeSec){
     date: dateIso,
     workoutName: w.name,
     manual: true,
+    splits: splits || [],
     totalTimeSec: timeSec,
     totalDistanceM: dist,
     blocks: [{
@@ -1277,7 +1418,13 @@ async function saveManual(){
   var km = parseFloat(String(document.getElementById('manKm').value).replace(',','.'));
   var ts = parseClockInput(document.getElementById('manTime').value);
   if(!dv || !(km>0) || !(ts>0)){ toast('Preencha data, distância e tempo'); return; }
-  var ok = await addManualSession(wid, new Date(dv).toISOString(), km, ts);
+  var rawSplits = document.getElementById('manSplits').value;
+  var splits = null;
+  if(rawSplits.trim()){
+    splits = parseSplitsInput(rawSplits, km, ts);
+    if(!splits){ toast('Parciais inválidas — use mm:ss separados por espaço'); return; }
+  }
+  var ok = await addManualSession(wid, new Date(dv).toISOString(), km, ts, splits);
   toast(ok ? 'Treino registrado' : 'Guardado só nesta sessão (falha ao sincronizar)');
   document.getElementById('manualForm').style.display='none';
   renderHistory();
@@ -1347,9 +1494,17 @@ async function renderHistory(){
     return '<div class="session-item" onclick="toggleSession('+idx+')">'+
       '<div class="date">'+s.workoutName+'</div>'+
       '<div class="meta">'+dateStr+' · '+fmtKm(s.totalDistanceM)+'km · '+secToClock(s.totalTimeSec)+'</div>'+
-      '<div id="sessionDetail'+idx+'" style="display:none; margin-top:8px;">'+blocksHtml+'</div>'+
+      '<div id="sessionDetail'+idx+'" style="display:none; margin-top:8px;">'+blocksHtml+buildAnalysisHtml(s)+
+        '<button class="btn btn-sm btn-danger" style="margin-top:8px" onclick="event.stopPropagation(); deleteSession(\''+s.date+'\')">Excluir esta sessão</button></div>'+
     '</div>';
   }).join('');
+}
+async function deleteSession(dateIso){
+  if(!confirm('Excluir esta sessão do histórico? Não dá para desfazer.')) return;
+  try{ localStorage.removeItem(STORAGE_PREFIX+'sessions:'+dateIso); }catch(e){}
+  LOCAL_SESSIONS = LOCAL_SESSIONS.filter(function(s){ return s.date !== dateIso; });
+  toast('Sessão excluída');
+  renderHistory();
 }
 function toggleSession(idx){
   var el = document.getElementById('sessionDetail'+idx);
@@ -1377,10 +1532,23 @@ function migrateTestFinalShape(){
   if(migrateTestFinalShape()){
     await storeSetRetry('config:workouts', STATE.workouts);
   }
+  await seedSem2B();
   renderZones();
   renderWorkouts();
   await checkForRecoverableSession();
 })();
+
+// Lança uma única vez o Treino B da Semana 2, feito no Runkeeper em 14/10/2026
+// (3,68 km em 22:09). A marca 'seed:sem2b' impede que reapareça se você excluir.
+async function seedSem2B(){
+  try{
+    if(await storeGet('seed:sem2b')) return;
+    var iso = '2026-10-14T21:01:00.000Z'; // 18:01 em Brasília
+    var existing = await storeGet('sessions:'+iso);
+    if(!existing){ await addManualSession('w24', iso, 3.68, 22*60+9, null); }
+    await storeSet('seed:sem2b', true);
+  }catch(e){ console.log('seed sem2b falhou', e); }
+}
 
 // Se a última corrida foi interrompida por fechamento inesperado (troca de
 // app, sistema encerrando a aba), o snapshot incremental permite recuperar
@@ -1408,7 +1576,9 @@ async function checkForRecoverableSession(){
       workoutName: snap.workoutName+' (recuperada)',
       totalTimeSec: snap.totalTimeSec,
       totalDistanceM: snap.totalDistanceM,
-      blocks: blocks
+      blocks: blocks,
+      splits: snap.splits || [],
+      zoneSec: snap.zoneSec || {}
     };
     LOCAL_SESSIONS.push(session);
     await storeSetRetry('sessions:'+snap.startedAt, session);
