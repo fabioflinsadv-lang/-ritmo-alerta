@@ -7,24 +7,24 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<meta name="theme-color" content="#E8551D">
+<meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ritmo Alerta">
 <style>
   :root{
-    --bg:#101012;
-    --panel:#1a1a1c;
-    --panel-2:#232326;
-    --line:#2e2e32;
+    --bg:#000000;
+    --panel:#0d0d0e;
+    --panel-2:#161617;
+    --line:#2a2a2d;
     --text:#f2f2f0;
-    --muted:#9a9a9f;
-    --orange:#E8551D;
-    --yellow:#F2B705;
-    --green:#3fae5c;
-    --red:#d43f3f;
-    --blue:#4c8bf5;
+    --muted:#8e8e93;
+    --orange:#f2f2f0;
+    --yellow:#d8d8db;
+    --green:#f2f2f0;
+    --red:#8e8e93;
+    --blue:#b0b0b5;
     --radius:14px;
   }
   *{box-sizing:border-box;}
@@ -37,15 +37,23 @@
     padding-bottom:84px;
   }
   h1,h2,h3{font-family:'Segoe UI', system-ui, sans-serif; margin:0;}
+  /* Cabeçalho: asfalto escuro com uma faixa tracejada de raia embaixo */
   .app-header{
-    background:linear-gradient(135deg, var(--yellow), var(--orange));
-    padding:18px 18px 14px;
-    color:#1a1a1a;
+    background:var(--panel);
+    padding:16px 18px 14px;
+    color:var(--text);
+    display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+    position:relative;
   }
-  .app-header .eyebrow{
-    font-size:11px; letter-spacing:.14em; text-transform:uppercase; font-weight:700; opacity:.75;
+  .app-header::after{
+    content:''; position:absolute; left:0; right:0; bottom:0; height:4px;
+    background:repeating-linear-gradient(90deg, var(--yellow) 0 18px, transparent 18px 28px);
+    opacity:.9;
   }
-  .app-header h1{font-size:26px; font-weight:800; margin-top:2px;}
+  .app-header h1{font-size:24px; font-weight:800; letter-spacing:-.01em;}
+  .app-header .sub{font-size:13px; color:var(--muted); text-align:right; line-height:1.3;}
+  .app-header .ver{font-size:10px; opacity:.7; display:block;}
+  .num, .run-pace, .run-stats .val, .session-item .meta, .split-row{font-variant-numeric:tabular-nums;}
   .container{padding:14px; max-width:520px; margin:0 auto;}
   .card{
     background:var(--panel);
@@ -54,16 +62,16 @@
     padding:14px;
     margin-bottom:12px;
   }
-  .card h3{font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:10px; font-weight:700;}
+  .card h3{font-size:16px; color:var(--text); margin-bottom:10px; font-weight:700;}
   .row{display:flex; align-items:center; gap:8px;}
   .btn{
     border:none; border-radius:10px; padding:11px 14px; font-size:14px; font-weight:700;
     cursor:pointer; color:#fff; background:var(--panel-2); border:1px solid var(--line);
   }
   .btn:active{transform:scale(0.97);}
-  .btn-primary{background:var(--orange); border-color:var(--orange);}
-  .btn-yellow{background:var(--yellow); color:#1a1a1a; border-color:var(--yellow);}
-  .btn-danger{background:var(--red); border-color:var(--red);}
+  .btn-primary{background:#f2f2f0; border-color:#f2f2f0; color:#000;}
+  .btn-yellow{background:#2a2a2d; color:#f2f2f0; border-color:#3a3a3e;}
+  .btn-danger{background:transparent; border-color:#5a5a5f; color:#d0d0d4;}
   .btn-ghost{background:transparent;}
   .btn-block{width:100%;}
   .btn-sm{padding:7px 10px; font-size:12px;}
@@ -71,7 +79,7 @@
     background:var(--panel-2); border:1px solid var(--line); color:var(--text);
     border-radius:8px; padding:9px 10px; font-size:14px; width:100%;
   }
-  label{font-size:11px; color:var(--muted); display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:.05em;}
+  label{font-size:12px; color:var(--muted); display:block; margin-bottom:4px;}
   .field{margin-bottom:10px;}
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
   .grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;}
@@ -80,6 +88,7 @@
     padding:10px 12px; border-radius:10px; margin-bottom:8px; background:var(--panel-2);
     border-left:5px solid var(--muted);
   }
+  .zone-chip{border-left-color:#6a6a6f !important;}
   .zone-chip .name{font-weight:700; font-size:14px;}
   .zone-chip .range{font-size:12px; color:var(--muted);}
   .tabbar{
@@ -92,8 +101,9 @@
     flex:1; background:none; border:none; color:var(--muted); font-size:11px;
     font-weight:700; padding:8px 2px; border-radius:10px; cursor:pointer;
   }
-  .tab-btn .ic{display:block; font-size:18px; margin-bottom:2px;}
-  .tab-btn.active{color:var(--yellow); background:rgba(242,183,5,0.08);}
+  .tab-btn .ic{display:block; margin:0 auto 3px; width:22px; height:22px;}
+  .tab-btn .ic svg{width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
+  .tab-btn.active{color:#fff; background:rgba(255,255,255,0.09);}
   .view{display:none;}
   .view.active{display:block;}
   .block-item{
@@ -114,27 +124,55 @@
     position:fixed; inset:0; z-index:100; display:none; flex-direction:column;
     color:#fff; transition:background .3s ease;
   }
-  #runScreen.status-target{background:#1c5c33;}
-  #runScreen.status-fast{background:#7a1f1f;}
-  #runScreen.status-slow{background:#1f3d7a;}
-  #runScreen.status-idle{background:#1a1a1c;}
+  #runScreen.status-target{background:#000;}
+  #runScreen.status-fast{background:#2e2e31;}
+  #runScreen.status-slow{background:#2e2e31;}
+  #runScreen.status-idle{background:#000;}
   .run-top{padding:16px 16px 4px; display:flex; justify-content:space-between; align-items:flex-start;}
-  .run-block-name{font-size:13px; text-transform:uppercase; letter-spacing:.08em; opacity:.85; font-weight:700;}
+  .run-block-name{font-size:17px; opacity:.95; font-weight:700;}
   .run-zone-range{font-size:13px; opacity:.75; margin-top:2px;}
   .run-close{background:rgba(255,255,255,0.15); border:none; color:#fff; border-radius:50%; width:34px; height:34px; font-size:16px;}
   .run-pace-wrap{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;}
-  .run-pace{font-size:96px; font-weight:800; line-height:1; letter-spacing:-2px;}
+  .run-pace{font-size:112px; font-weight:800; line-height:1; letter-spacing:-3px;}
+  .run-pace-cap{font-size:15px; opacity:.7; margin-bottom:6px;}
+  .run-splits{max-height:24vh; overflow-y:auto; margin:6px 22px 0; border-top:1px solid rgba(255,255,255,.15); -webkit-overflow-scrolling:touch;}
+  .run-split-row{display:flex; justify-content:space-between; padding:7px 2px; font-size:17px; border-bottom:1px solid rgba(255,255,255,.1); font-variant-numeric:tabular-nums;}
+  .run-split-row .k{opacity:.7;}
+  .run-split-row.cur{opacity:.6; font-style:italic;}
+  .run-split-row b{font-weight:800;}
   .run-pace-unit{font-size:16px; opacity:.8; margin-top:4px; font-weight:600;}
-  .run-status-label{font-size:15px; font-weight:800; margin-top:14px; text-transform:uppercase; letter-spacing:.08em;}
+  .run-status-label{font-size:24px; font-weight:800; margin-top:14px; text-align:center; padding:0 16px;}
+  /* Medidor: a faixa-alvo é o trecho claro; o marcador mostra onde seu ritmo está agora */
+  .gauge{position:relative; height:14px; margin:18px 28px 0; width:calc(100% - 56px); background:rgba(255,255,255,0.14); border-radius:7px;}
+  .gauge .band{position:absolute; top:0; bottom:0; background:rgba(255,255,255,0.55); border-radius:7px;}
+  .gauge .mark{position:absolute; top:-5px; width:6px; height:24px; margin-left:-3px; background:#fff; border-radius:3px; box-shadow:0 0 0 2px rgba(0,0,0,.35); transition:left .6s ease;}
+  .gauge-labels{display:flex; justify-content:space-between; width:calc(100% - 56px); margin:6px 28px 0; font-size:12px; opacity:.7;}
+  /* Grupos de semana */
+  details.wk{background:var(--panel-2); border:1px solid var(--line); border-radius:12px; margin-bottom:10px;}
+  details.wk > summary{list-style:none; cursor:pointer; padding:13px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; font-weight:700; font-size:15px;}
+  details.wk > summary::-webkit-details-marker{display:none;}
+  details.wk > summary::after{content:''; width:8px; height:8px; border-right:2px solid var(--muted); border-bottom:2px solid var(--muted); transform:rotate(45deg); margin-left:4px; transition:transform .2s;}
+  details.wk[open] > summary::after{transform:rotate(-135deg);}
+  details.wk .prog{font-size:12px; color:var(--muted); font-weight:600; margin-left:auto;}
+  details.wk .prog.done{color:var(--green);}
+  details.wk .wk-body{padding:0 10px 10px;}
+  .wk-item{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:11px 12px; margin-bottom:8px;}
+  .wk-item h4{font-size:15px; margin:0 0 2px;}
+  .wk-item .meta{font-size:12px; color:var(--muted); margin-bottom:8px;}
+  .next-card{background:var(--panel-2); border:1px solid var(--line); border-left:5px solid #f2f2f0; border-radius:12px; padding:14px; margin-bottom:12px;}
+  .next-card .lbl{font-size:13px; color:#d8d8db; font-weight:700;}
+  .next-card h4{font-size:19px; margin:4px 0 2px; line-height:1.25;}
+  .next-card .meta{font-size:13px; color:var(--muted); margin-bottom:12px;}
   .run-progress-wrap{padding:0 22px; margin-bottom:10px;}
   .run-progress-bar{height:8px; background:rgba(255,255,255,0.18); border-radius:4px; overflow:hidden;}
   .run-progress-fill{height:100%; background:#fff; border-radius:4px; transition:width .4s;}
-  .run-gps-info{font-size:12px; opacity:.7; margin-top:8px; letter-spacing:.03em;}
+  .run-gps-info{font-size:13px; opacity:.75; margin-top:10px; padding:0 28px; text-align:center; line-height:1.4;}
   .run-stats{display:flex; justify-content:space-around; padding:10px 16px 6px; text-align:center;}
-  .run-stats .val{font-size:19px; font-weight:800;}
-  .run-stats .lab{font-size:10px; opacity:.75; text-transform:uppercase; letter-spacing:.06em;}
+  .run-stats .val{font-size:20px; font-weight:800;}
+  .run-stats .lab{font-size:12px; opacity:.75;}
   .run-controls{display:flex; gap:10px; padding:14px 16px calc(16px + env(safe-area-inset-bottom));}
-  .run-controls .btn{flex:1; padding:14px; font-size:14px;}
+  .run-controls .btn{flex:1; padding:14px 6px; font-size:14px;}
+  .run-controls .btn, .run-controls .btn-primary{background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.22); color:#fff;}
 
   .toast{
     position:fixed; top:14px; left:50%; transform:translateX(-50%);
@@ -149,16 +187,16 @@
   .session-item .date{font-weight:700; font-size:14px;}
   .session-item .meta{font-size:12px; color:var(--muted); margin-top:2px;}
   .split-row{display:flex; justify-content:space-between; font-size:12px; padding:5px 0; border-bottom:1px solid var(--line);}
-  .split-row .ok{color:var(--green);}
-  .split-row .bad{color:var(--red);}
+  .split-row .ok{color:#fff; font-weight:700;}
+  .split-row .bad{color:#8e8e93;}
   select option{color:#000;}
 </style>
 </head>
 <body>
 
 <div class="app-header">
-  <div class="eyebrow">Plano Sub-22 · Fase 1 · versão 2026-10-15c</div>
   <h1>Ritmo Alerta</h1>
+  <div class="sub">Sub-22 · Fase 1<span class="ver">versão 2026-10-15h</span></div>
 </div>
 
 <div class="container">
@@ -248,6 +286,7 @@
       <div class="row">
         <button class="btn btn-sm" onclick="toggleManualForm()">+ Registro manual</button>
         <button class="btn btn-sm" onclick="importSem1()">Importar Semana 1 (A, B, D do Runkeeper)</button>
+        <button class="btn btn-sm" onclick="exportTrace()">Baixar trilha GPS da última corrida</button>
       </div>
       <div id="manualForm" style="display:none; margin-top:10px;">
         <div class="field"><label>Treino</label><select id="manWorkout"></select></div>
@@ -267,10 +306,10 @@
 </div>
 
 <div class="tabbar">
-  <button class="tab-btn active" data-tab="zonas" onclick="switchTab('zonas')"><span class="ic">◐</span>Zonas</button>
-  <button class="tab-btn" data-tab="treinos" onclick="switchTab('treinos')"><span class="ic">▤</span>Treinos</button>
-  <button class="tab-btn" data-tab="correr" onclick="switchTab('correr')"><span class="ic">▶</span>Correr</button>
-  <button class="tab-btn" data-tab="historico" onclick="switchTab('historico')"><span class="ic">◷</span>Histórico</button>
+  <button class="tab-btn active" data-tab="zonas" onclick="switchTab('zonas')"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 17a9 9 0 0 1 18 0"/><path d="M12 17l4-6"/><circle cx="12" cy="17" r="1.2"/></svg></span>Zonas</button>
+  <button class="tab-btn" data-tab="treinos" onclick="switchTab('treinos')"><span class="ic"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 10h6M9 14h6M9 18h3"/></svg></span>Treinos</button>
+  <button class="tab-btn" data-tab="correr" onclick="switchTab('correr')"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z"/></svg></span>Correr</button>
+  <button class="tab-btn" data-tab="historico" onclick="switchTab('historico')"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v4h4"/><path d="M12 8v4l3 2"/></svg></span>Histórico</button>
 </div>
 
 <!-- RUN SCREEN -->
@@ -283,21 +322,27 @@
     <button class="run-close" onclick="confirmStop()">✕</button>
   </div>
   <div class="run-pace-wrap">
+    <div class="run-pace-cap">Ritmo atual</div>
     <div class="run-pace" id="runPace">--:--</div>
     <div class="run-pace-unit">min/km</div>
-    <div class="run-status-label" id="runStatusLabel">AGUARDANDO GPS</div>
+    <div class="run-status-label" id="runStatusLabel">Aguardando GPS</div>
+    <div class="gauge" id="runGauge"><div class="band" id="gaugeBand"></div><div class="mark" id="gaugeMark" style="display:none"></div></div>
+    <div class="gauge-labels" id="gaugeLabels"><span>mais rápido</span><span>mais lento</span></div>
     <div class="run-gps-info" id="runGpsInfo">Sem sinal de GPS ainda</div>
   </div>
   <div class="run-progress-wrap">
     <div class="run-progress-bar"><div class="run-progress-fill" id="runProgressFill" style="width:0%"></div></div>
   </div>
   <div class="run-stats">
-    <div><div class="val" id="statTotalTime">00:00</div><div class="lab">Tempo total</div></div>
-    <div><div class="val" id="statTotalDist">0,00</div><div class="lab">Km total</div></div>
-    <div><div class="val" id="statBlockRemain">--</div><div class="lab">Restante bloco</div></div>
+    <div><div class="val" id="statTotalTime">00:00</div><div class="lab">Tempo</div></div>
+    <div><div class="val" id="statTotalDist">0,00</div><div class="lab">Km</div></div>
+    <div><div class="val" id="statAvgPace">--:--</div><div class="lab">Ritmo médio</div></div>
+    <div><div class="val" id="statBlockRemain">--</div><div class="lab">Restante</div></div>
   </div>
+  <div class="run-splits" id="runSplits"></div>
   <div class="run-controls">
     <button class="btn" id="btnPause" onclick="togglePause()">Pausar</button>
+    <button class="btn" id="btnVoice" onclick="toggleVoice()">Voz ligada</button>
     <button class="btn btn-primary" onclick="skipBlock()">Pular bloco</button>
   </div>
 </div>
@@ -710,8 +755,8 @@ function completedBadgeHtml(summary, workoutName){
   var comp = summary[workoutName];
   if(!comp) return '';
   var dateStr = new Date(comp.lastDate).toLocaleDateString('pt-BR');
-  return '<div style="font-size:12px; color:var(--green); font-weight:700; margin:4px 0;">'+
-    '✅ Concluído'+(comp.count>1?' '+comp.count+'x':'')+' — última vez em '+dateStr+'</div>';
+  return '<div style="font-size:12px; color:#f2f2f0; font-weight:700; margin:4px 0;">'+
+    '✓ Concluído'+(comp.count>1?' '+comp.count+'x':'')+' — última vez em '+dateStr+'</div>';
 }
 
 /* ============ ZONES UI ============ */
@@ -775,14 +820,61 @@ async function renderWorkouts(){
   var el = document.getElementById('workoutsList');
   if(STATE.workouts.length===0){ el.innerHTML='<div class="empty">Nenhum treino salvo ainda.</div>'; return; }
   var summary = await getCompletedSummary();
-  el.innerHTML = STATE.workouts.map(function(w){
-    return '<div class="workout-card">'+
-      '<h4>'+w.name+'</h4>'+
-      '<div class="meta">'+w.blocks.length+' blocos</div>'+
-      completedBadgeHtml(summary, w.name)+
-      '<div class="row"><button class="btn btn-sm" onclick="editWorkout(\''+w.id+'\')">Editar</button>'+
-      '<button class="btn btn-sm btn-danger" onclick="deleteWorkout(\''+w.id+'\')">Excluir</button></div>'+
-    '</div>';
+  var nextW = nextWorkout(summary);
+  el.innerHTML = renderWorkoutGroups(summary, nextW ? nextW.id : null, function(w){
+    return '<div class="row"><button class="btn btn-sm" onclick="editWorkout(\''+w.id+'\')">Editar</button>'+
+      '<button class="btn btn-sm btn-danger" onclick="deleteWorkout(\''+w.id+'\')">Excluir</button></div>';
+  });
+}
+
+/* ---- agrupamento por semana (lista longa fica navegável) ---- */
+STATE.openGroups = STATE.openGroups || {};
+function workoutGroupInfo(w){
+  var m = /^Sub-22 · Sem\.(\d+) · /.exec(w.name);
+  if(m) return { key:'s22-'+m[1], title:'Semana '+m[1]+' · Sub-22', order:Number(m[1]), short:w.name.replace(m[0], '') };
+  m = /^Semana (\d+) · /.exec(w.name);
+  if(m) return { key:'old-'+m[1], title:'Plano de 6 semanas · Semana '+m[1], order:100+Number(m[1]), short:w.name.replace(m[0], '') };
+  return { key:'outros', title:'Outros treinos', order:999, short:w.name };
+}
+function workoutBrief(w){
+  var b = w.blocks || [];
+  if(!b.length) return '';
+  var tot = 0, allTime = true;
+  b.forEach(function(x){ if(x.type==='time') tot += x.value; else allTime = false; });
+  if(b.length === 1){
+    var zn = zoneById(b[0].zoneId);
+    var dur = b[0].type==='time' ? Math.round(b[0].value/60)+' min' : (b[0].value/1000).toFixed(1).replace('.',',')+' km';
+    return dur + (zn ? ' · '+secToPace(zn.min)+'–'+secToPace(zn.max)+'/km' : '');
+  }
+  return b.length+' blocos'+(allTime ? ' · '+Math.round(tot/60)+' min' : '');
+}
+// Próximo treino: o primeiro do plano Sub-22 ainda não feito depois do último que você concluiu.
+function nextWorkout(summary){
+  var plan = STATE.workouts.filter(function(w){ return w.name.indexOf('Sub-22') === 0; });
+  var lastDone = -1;
+  plan.forEach(function(w, i){ if(summary[w.name]) lastDone = i; });
+  for(var i = lastDone + 1; i < plan.length; i++){ if(!summary[plan[i].name]) return plan[i]; }
+  return null;
+}
+function renderWorkoutGroups(summary, nextId, actionsFn){
+  var groups = {};
+  STATE.workouts.forEach(function(w){
+    var g = workoutGroupInfo(w);
+    if(!groups[g.key]) groups[g.key] = { key:g.key, title:g.title, order:g.order, items:[] };
+    groups[g.key].items.push({ w:w, short:g.short });
+  });
+  var list = Object.keys(groups).map(function(k){ return groups[k]; }).sort(function(a,b){ return a.order - b.order; });
+  return list.map(function(g){
+    var done = g.items.filter(function(it){ return summary[it.w.name]; }).length;
+    var hasNext = nextId && g.items.some(function(it){ return it.w.id === nextId; });
+    var open = (STATE.openGroups[g.key] !== undefined) ? STATE.openGroups[g.key] : !!hasNext;
+    var prog = done + ' de ' + g.items.length;
+    return '<details class="wk" data-k="'+g.key+'"'+(open?' open':'')+' ontoggle="STATE.openGroups[this.dataset.k]=this.open">'+
+      '<summary><span>'+g.title+'</span><span class="prog'+(done===g.items.length?' done':'')+'">'+prog+'</span></summary>'+
+      '<div class="wk-body">'+g.items.map(function(it){
+        return '<div class="wk-item"><h4>'+it.short+'</h4><div class="meta num">'+workoutBrief(it.w)+'</div>'+
+          completedBadgeHtml(summary, it.w.name)+actionsFn(it.w)+'</div>';
+      }).join('')+'</div></details>';
   }).join('');
 }
 function renderZoneSelectOptions(){
@@ -857,11 +949,17 @@ async function renderRunPicker(){
   var el = document.getElementById('runPicker');
   if(STATE.workouts.length===0){ el.innerHTML='<div class="empty">Crie um treino na aba Treinos primeiro.</div>'; return; }
   var summary = await getCompletedSummary();
-  el.innerHTML = STATE.workouts.map(function(w){
-    return '<div class="workout-card"><h4>'+w.name+'</h4><div class="meta">'+w.blocks.length+' blocos</div>'+
-      completedBadgeHtml(summary, w.name)+
-      '<button class="btn btn-primary btn-block btn-sm" onclick="pickWorkout(\''+w.id+'\')">Selecionar</button></div>';
-  }).join('');
+  var nextW = nextWorkout(summary);
+  var nextHtml = '';
+  if(nextW){
+    var gi = workoutGroupInfo(nextW);
+    nextHtml = '<div class="next-card"><div class="lbl">Próximo treino</div>'+
+      '<h4>'+gi.short+'</h4><div class="meta num">'+gi.title+' · '+workoutBrief(nextW)+'</div>'+
+      '<button class="btn btn-primary btn-block" onclick="pickWorkout(\''+nextW.id+'\')">Iniciar este treino</button></div>';
+  }
+  el.innerHTML = nextHtml + renderWorkoutGroups(summary, nextW ? nextW.id : null, function(w){
+    return '<button class="btn '+(summary[w.name] ? '' : 'btn-primary ')+'btn-block btn-sm" onclick="pickWorkout(\''+w.id+'\')">'+(summary[w.name] ? 'Repetir' : 'Iniciar')+'</button>';
+  });
   var freeSel = document.getElementById('freeZoneSelect');
   freeSel.innerHTML = STATE.zones.map(function(z){ return '<option value="'+z.id+'">'+z.name+'</option>'; }).join('');
 }
@@ -965,10 +1063,12 @@ function confirmStart(isFree, workoutId){
     lastAlertStatus: 'target',
     lastReminderAt: 0,
     log: [],
-    splits: [], splitStartSec: 0, zoneSec: {},
+    splits: [], splitStartSec: 0, zoneSec: {}, trace: [],
+    warmup: true, warmupGood: 0, warmupStartedAt: Date.now(),
     startedAt: new Date().toISOString()
   };
   document.getElementById('freeZonePickCard').style.display='none';
+  refreshVoiceBtn();
   openRunScreen();
   startGeolocation();
   startTicker();
@@ -1003,6 +1103,19 @@ function onPosition(pos){
   var c = pos.coords;
   RUN.lastAccuracy = (typeof c.accuracy === 'number') ? c.accuracy : null;
   RUN.lastFixAt = Date.now();
+  // trilha bruta (t, lat, lng, precisão, velocidade) — usada só para calibrar o cálculo de distância
+  if(RUN.trace.length < 6000){
+    RUN.trace.push([pos.timestamp||Date.now(), Math.round(c.latitude*1e6)/1e6, Math.round(c.longitude*1e6)/1e6,
+      (typeof c.accuracy==='number' ? Math.round(c.accuracy*10)/10 : null),
+      (typeof c.speed==='number' && !isNaN(c.speed) ? Math.round(c.speed*100)/100 : null)]);
+  }
+  // Aquecimento do GPS: o primeiro sinal costuma ser impreciso e melhora aos poucos.
+  // Enquanto não estabilizar (precisão <= 20 m em 3 leituras seguidas), nada é contado.
+  if(RUN.warmup){
+    if(typeof c.accuracy === 'number' && c.accuracy <= 20){ RUN.warmupGood += 1; } else { RUN.warmupGood = 0; }
+    if(RUN.warmupGood >= 3){ endWarmup(true); }
+    return;
+  }
   var pt = { t: pos.timestamp||Date.now(), lat:c.latitude, lng:c.longitude };
   var prev = RUN.points.length ? RUN.points[RUN.points.length-1] : null;
   if(prev){
@@ -1037,12 +1150,22 @@ function onPosition(pos){
     while(RUN.totalDistance >= (RUN.splits.length + 1) * 1000){
       RUN.splits.push({ km: RUN.splits.length + 1, distM: 1000, timeSec: Math.max(1, RUN.totalTimeSec - RUN.splitStartSec) });
       RUN.splitStartSec = RUN.totalTimeSec;
+      announceSplit(RUN.splits[RUN.splits.length-1]);
     }
   }
   RUN.points.push(pt);
   if(RUN.points.length>60) RUN.points.shift();
 }
 
+function endWarmup(gpsOk){
+  if(!RUN || !RUN.warmup) return;
+  RUN.warmup = false;
+  RUN.points = []; RUN.trace = []; RUN.speedEMA = null;
+  RUN.startedAt = new Date().toISOString();
+  vibrate([150,80,150]);
+  try{ alertOk(); }catch(e){}
+  toast(gpsOk ? 'GPS pronto — pode correr! O treino começou agora.' : 'GPS ainda impreciso, mas o treino começou agora.');
+}
 function currentPace(){
   // Ritmo instantâneo a partir da velocidade suavizada (menos sujeito a ruído).
   if(RUN.speedEMA != null && RUN.lastSpeedAt && (Date.now() - RUN.lastSpeedAt) < 8000){
@@ -1074,6 +1197,11 @@ function stopTicker(){ if(tickTimer){ clearInterval(tickTimer); tickTimer=null; 
 
 function tick(){
   if(!RUN || RUN.paused) return;
+  if(RUN.warmup){
+    // sem sinal bom em 90 s: começa mesmo assim, para não prender você na largada
+    if(Date.now() - RUN.warmupStartedAt > 90000){ endWarmup(false); }
+    else { updateRunUI(null); return; }
+  }
   RUN.totalTimeSec += 1;
   RUN.blockTimeSec += 1;
 
@@ -1155,28 +1283,86 @@ function updateRunUI(pace, zone, block){
 
   document.getElementById('runBlockName').textContent = block.label;
   document.getElementById('runZoneRange').textContent = zone ? (zone.name+' · '+secToPace(zone.min)+'–'+secToPace(zone.max)+'/km') : '';
-  document.getElementById('runPace').textContent = pace!=null ? secToPace(pace) : '--:--';
+  document.getElementById('runPace').textContent = pace!=null ? secToPace(pace).replace(/^0/, '') : '--:--';
 
   var gpsInfoEl = document.getElementById('runGpsInfo');
   if(RUN.gpsError){
-    document.getElementById('runStatusLabel').textContent = 'ERRO DE GPS';
+    document.getElementById('runStatusLabel').textContent = 'Erro de GPS';
     gpsInfoEl.textContent = RUN.gpsError;
+  } else if(RUN.warmup){
+    document.getElementById('runStatusLabel').textContent = 'Aquecendo o GPS';
+    gpsInfoEl.textContent = 'Fique parado até o aviso sonoro. Precisão: '+
+      (RUN.lastAccuracy!=null ? ('±'+Math.round(RUN.lastAccuracy)+' m') : 'sem sinal')+' (meta: ±20 m)';
   } else if(pace==null){
-    document.getElementById('runStatusLabel').textContent = RUN.points.length===0 ? 'AGUARDANDO GPS' : 'CALIBRANDO RITMO…';
+    document.getElementById('runStatusLabel').textContent = RUN.points.length===0 ? 'Aguardando GPS' : 'Calibrando o ritmo…';
     gpsInfoEl.textContent = RUN.lastAccuracy!=null ? ('Precisão do sinal: ±'+Math.round(RUN.lastAccuracy)+'m') : 'Sem sinal de GPS ainda';
   } else {
     document.getElementById('runStatusLabel').textContent =
-      st==='target' ? 'NA FAIXA' : st==='fast' ? 'RÁPIDO DEMAIS' : 'LENTO DEMAIS';
+      st==='target' ? 'Na faixa' : st==='fast' ? 'Rápido demais — desacelere' : 'Lento demais — acelere';
     gpsInfoEl.textContent = RUN.lastAccuracy!=null ? ('Precisão do sinal: ±'+Math.round(RUN.lastAccuracy)+'m') : '';
   }
+
+  // medidor: faixa-alvo + marcador do ritmo atual (escala = faixa ± 45 s/km)
+  var gBand = document.getElementById('gaugeBand'), gMark = document.getElementById('gaugeMark');
+  document.getElementById('runGauge').style.visibility = RUN.warmup ? 'hidden' : 'visible';
+  document.getElementById('gaugeLabels').style.visibility = RUN.warmup ? 'hidden' : 'visible';
+  if(zone){
+    var lo = zone.min - 45, hi = zone.max + 45, span = hi - lo;
+    gBand.style.left = ((zone.min - lo)/span*100)+'%';
+    gBand.style.width = ((zone.max - zone.min)/span*100)+'%';
+    if(pace!=null && !RUN.warmup){
+      var pos = Math.max(0, Math.min(100, (pace - lo)/span*100));
+      gMark.style.left = pos+'%'; gMark.style.display = 'block';
+    } else { gMark.style.display = 'none'; }
+  } else { gBand.style.width = '0'; gMark.style.display = 'none'; }
 
   var pct = block.type==='time' ? Math.min(100, RUN.blockTimeSec/block.value*100) : Math.min(100, RUN.blockDistance/block.value*100);
   document.getElementById('runProgressFill').style.width = pct+'%';
 
   document.getElementById('statTotalTime').textContent = secToClock(RUN.totalTimeSec);
   document.getElementById('statTotalDist').textContent = fmtKm(RUN.totalDistance);
-  var remain = block.type==='time' ? Math.max(0, block.value-RUN.blockTimeSec)+'s' : Math.max(0, block.value-RUN.blockDistance).toFixed(0)+'m';
+  document.getElementById('statAvgPace').textContent = (RUN.totalDistance >= 50 && RUN.totalTimeSec > 0)
+    ? secToPace(RUN.totalTimeSec / (RUN.totalDistance/1000)).replace(/^0/, '') : '--:--';
+  renderRunSplits();
+  var remain = block.type==='time' ? secToClock(Math.max(0, block.value-RUN.blockTimeSec)) : Math.max(0, block.value-RUN.blockDistance).toFixed(0)+'m';
   document.getElementById('statBlockRemain').textContent = remain;
+}
+
+// Parciais na tela de corrida: km concluídos + o km em andamento (como no Strava)
+function renderRunSplits(){
+  var el = document.getElementById('runSplits');
+  if(!el || !RUN) return;
+  var remM = Math.max(0, RUN.totalDistance - RUN.splits.length * 1000);
+  var sig = RUN.splits.length + ':' + Math.floor(remM/50);
+  if(RUN.splitSig === sig) return;
+  RUN.splitSig = sig;
+  var rows = [];
+  if(remM >= 100 && !RUN.warmup){
+    var pp = (RUN.totalTimeSec - RUN.splitStartSec) / (remM/1000);
+    rows.push('<div class="run-split-row cur"><span class="k">Km '+(RUN.splits.length+1)+' · em andamento</span><span>'+secToPace(pp).replace(/^0/,'')+' <small>('+Math.round(remM)+' m)</small></span></div>');
+  }
+  for(var i = RUN.splits.length - 1; i >= 0; i--){
+    var sp = RUN.splits[i];
+    rows.push('<div class="run-split-row"><span class="k">Km '+sp.km+'</span><b>'+secToPace(sp.timeSec/(sp.distM/1000)).replace(/^0/,'')+'</b></div>');
+  }
+  el.innerHTML = rows.join('');
+}
+// Aviso por voz a cada km concluído (ligar/desligar no botão "Voz")
+function voiceOn(){ try{ return localStorage.getItem('ritmoalerta:voice') !== 'off'; }catch(e){ return true; } }
+function refreshVoiceBtn(){ var b = document.getElementById('btnVoice'); if(b) b.textContent = voiceOn() ? 'Voz ligada' : 'Voz desligada'; }
+function toggleVoice(){
+  try{ localStorage.setItem('ritmoalerta:voice', voiceOn() ? 'off' : 'on'); }catch(e){}
+  refreshVoiceBtn();
+}
+function announceSplit(sp){
+  vibrate([60,40,60]);
+  if(!voiceOn()) return;
+  try{
+    var p = sp.timeSec / (sp.distM/1000), m = Math.floor(p/60), sec = Math.round(p%60);
+    var u = new SpeechSynthesisUtterance('Quilômetro '+sp.km+'. Ritmo '+m+' minutos e '+sec+' segundos.');
+    u.lang = 'pt-BR'; u.rate = 1.0;
+    window.speechSynthesis.speak(u);
+  }catch(e){}
 }
 
 function advanceBlock(reason){
@@ -1234,6 +1420,9 @@ function confirmStop(){
   if(confirm('Encerrar e salvar esta sessão?')) finishRun();
 }
 
+// Estimativa de calorias: gasto líquido da corrida ≈ 1,0 kcal × kg × km (erro típico ±10–15%)
+var WEIGHT_KG = 84;
+function sessionKcal(distM){ return Math.round(WEIGHT_KG * (distM/1000) * 1.0); }
 async function finishRun(){
   releaseWakeLock();
   // fecha bloco atual se ainda não foi logado (parada manual no meio do bloco)
@@ -1267,8 +1456,11 @@ async function finishRun(){
   };
   LOCAL_SESSIONS.push(session);
   var ok = await storeSetRetry('sessions:'+RUN.startedAt, session);
+  // guarda só a trilha da ÚLTIMA corrida (para exportar e calibrar a distância)
+  await storeSet('trace:last', { date: RUN.startedAt, workoutName: RUN.workout.name,
+    appDistanceM: Math.round(RUN.totalDistance), appTimeSec: RUN.totalTimeSec, splits: RUN.splits, points: RUN.trace });
   await clearInProgressSnapshot();
-  toast(ok ? 'Sessão salva no histórico' : 'Sessão guardada nesta sessão (falha ao sincronizar)');
+  toast(ok ? 'Sessão salva · ~'+sessionKcal(session.totalDistanceM)+' kcal' : 'Sessão guardada nesta sessão (falha ao sincronizar)');
   closeRunScreenOnly();
   RUN = null;
   switchTab('historico');
@@ -1279,12 +1471,12 @@ async function finishRun(){
 // (as zonas de treino se sobrepõem entre fases, então não servem para
 // classificar cada segundo de corrida sem ambiguidade).
 var ANALYSIS_ZONES = [
-  { name:'Recuperação', range:'mais lento que 6:20', color:'#7A8794' },
-  { name:'Fácil',       range:'5:50–6:20', color:'#4C8BF5' },
-  { name:'Moderado',    range:'5:15–5:50', color:'#2FB67C' },
-  { name:'Tempo/limiar',range:'4:45–5:15', color:'#F2B705' },
-  { name:'Ritmo de prova', range:'4:20–4:45', color:'#E8571C' },
-  { name:'Velocidade',  range:'mais rápido que 4:20', color:'#D6336C' }
+  { name:'Recuperação', range:'mais lento que 6:20', color:'#5f5f64' },
+  { name:'Fácil',       range:'5:50–6:20', color:'#85858b' },
+  { name:'Moderado',    range:'5:15–5:50', color:'#aaaaaf' },
+  { name:'Tempo/limiar',range:'4:45–5:15', color:'#c9c9cd' },
+  { name:'Ritmo de prova', range:'4:20–4:45', color:'#e4e4e7' },
+  { name:'Velocidade',  range:'mais rápido que 4:20', color:'#ffffff' }
 ];
 function analysisZoneIdx(paceSec){
   if(paceSec > 380) return 0;
@@ -1429,6 +1621,18 @@ async function saveManual(){
   document.getElementById('manualForm').style.display='none';
   renderHistory();
 }
+async function exportTrace(){
+  var t = await storeGet('trace:last');
+  if(!t || !t.points || !t.points.length){ toast('Nenhuma trilha guardada ainda — faça uma corrida com o app'); return; }
+  try{
+    var blob = new Blob([JSON.stringify(t)], {type:'application/json'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'trilha-gps-' + String(t.date).slice(0,10) + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    toast('Trilha baixada ('+t.points.length+' pontos)');
+  }catch(e){ toast('Não consegui baixar a trilha'); }
+}
 async function importSem1(){
   if(!confirm('Importar A (05/10), B (06/10) e D (08/10) da Semana 1, com os dados do Runkeeper?')) return;
   var items = [
@@ -1478,23 +1682,24 @@ async function renderHistory(){
         '</div>';
       var reasonTag = '';
       if(b.reason === 'pulado-manualmente'){
-        reasonTag = '<div style="font-size:11px; color:var(--yellow); margin-top:2px;">⚠ Pulado manualmente</div>';
+        reasonTag = '<div style="font-size:11px; color:#d8d8db; margin-top:2px;">⚠ Pulado manualmente</div>';
       } else if(b.reason === 'sessao-encerrada-aqui'){
-        reasonTag = '<div style="font-size:11px; color:var(--red); margin-top:2px;">⚠ Sessão encerrada durante este bloco</div>';
+        reasonTag = '<div style="font-size:11px; color:#d8d8db; margin-top:2px;">⚠ Sessão encerrada durante este bloco</div>';
       } else if(b.reason === 'registro-manual'){
         reasonTag = '';
       } else if(!b.reason){
         reasonTag = '<div style="font-size:11px; color:var(--muted); margin-top:2px;">Sessão gravada antes da checagem de integridade — motivo de término desconhecido</div>';
       }
       return '<div class="split-row" style="display:block;"><div style="display:flex; justify-content:space-between;"><span>'+b.label+'</span><span class="'+(actualPace==null?'':(inRange?'ok':'bad'))+'">'+
-        (actualPace!=null ? secToPace(actualPace)+'/km' : secToClock(b.timeSec))+
+        (actualPace!=null ? secToPace(actualPace)+'/km'+(b.targetMin!=null ? (inRange?' ✓':' ✗') : '') : secToClock(b.timeSec))+
         (b.targetMin!=null ? ' (alvo '+secToPace(b.targetMin)+'–'+secToPace(b.targetMax)+')' : '')+
         '</span></div>'+rawTag+reasonTag+'</div>';
     }).join('');
     return '<div class="session-item" onclick="toggleSession('+idx+')">'+
       '<div class="date">'+s.workoutName+'</div>'+
-      '<div class="meta">'+dateStr+' · '+fmtKm(s.totalDistanceM)+'km · '+secToClock(s.totalTimeSec)+'</div>'+
-      '<div id="sessionDetail'+idx+'" style="display:none; margin-top:8px;">'+blocksHtml+buildAnalysisHtml(s)+
+      '<div class="meta">'+dateStr+' · '+fmtKm(s.totalDistanceM)+'km · '+secToClock(s.totalTimeSec)+' · ~'+sessionKcal(s.totalDistanceM)+' kcal</div>'+
+      '<div id="sessionDetail'+idx+'" style="display:none; margin-top:8px;">'+blocksHtml+
+        '<div style="font-size:12px; margin:10px 0 2px;"><b>Calorias (estimativa):</b> ~'+sessionKcal(s.totalDistanceM)+' kcal <span style="color:var(--muted)">· '+WEIGHT_KG+' kg, ±10–15%</span></div>'+buildAnalysisHtml(s)+
         '<button class="btn btn-sm btn-danger" style="margin-top:8px" onclick="event.stopPropagation(); deleteSession(\''+s.date+'\')">Excluir esta sessão</button></div>'+
     '</div>';
   }).join('');
