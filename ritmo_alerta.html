@@ -140,6 +140,14 @@
   .run-split-row .k{opacity:.7;}
   .run-split-row.cur{opacity:.6; font-style:italic;}
   .run-split-row b{font-weight:800;}
+  .run-blocks{margin-top:14px; display:flex; flex-direction:column; align-items:center; gap:7px; padding:0 16px;}
+  .rb-squares{display:flex; flex-wrap:wrap; justify-content:center; gap:5px;}
+  .rb-sq{width:15px; height:15px; border-radius:4px; border:1.5px solid #3c3c40; background:transparent;}
+  .rb-sq.done{background:#f2f2f0; border-color:#f2f2f0;}
+  .rb-sq.cur{border-color:#f2f2f0; background:#5a5a5f;}
+  .rb-squares.many .rb-sq{width:10px; height:10px; border-radius:3px;}
+  .rb-count{font-size:15px; font-weight:800;}
+  .rb-count small{font-weight:600; color:#8e8e93; margin-left:6px;}
   .run-pace-unit{font-size:16px; opacity:.8; margin-top:4px; font-weight:600;}
   .run-status-label{font-size:24px; font-weight:800; margin-top:14px; text-align:center; padding:0 16px;}
   /* Medidor: a faixa-alvo é o trecho claro; o marcador mostra onde seu ritmo está agora */
@@ -196,7 +204,7 @@
 
 <div class="app-header">
   <h1>Ritmo Alerta</h1>
-  <div class="sub">Sub-22 · Fase 1<span class="ver">versão 2026-10-15h</span></div>
+  <div class="sub">Sub-22 · Fase 1<span class="ver">versão 2026-10-19b</span></div>
 </div>
 
 <div class="container">
@@ -322,12 +330,13 @@
     <button class="run-close" onclick="confirmStop()">✕</button>
   </div>
   <div class="run-pace-wrap">
-    <div class="run-pace-cap">Ritmo atual</div>
+    <div class="run-pace-cap" id="runPaceCap">Ritmo atual</div>
     <div class="run-pace" id="runPace">--:--</div>
     <div class="run-pace-unit">min/km</div>
     <div class="run-status-label" id="runStatusLabel">Aguardando GPS</div>
     <div class="gauge" id="runGauge"><div class="band" id="gaugeBand"></div><div class="mark" id="gaugeMark" style="display:none"></div></div>
     <div class="gauge-labels" id="gaugeLabels"><span>mais rápido</span><span>mais lento</span></div>
+    <div class="run-blocks" id="runBlocks" style="display:none"><div class="rb-squares" id="rbSquares"></div><div class="rb-count" id="rbCount"></div></div>
     <div class="run-gps-info" id="runGpsInfo">Sem sinal de GPS ainda</div>
   </div>
   <div class="run-progress-wrap">
@@ -1104,7 +1113,8 @@ function onPosition(pos){
   RUN.lastAccuracy = (typeof c.accuracy === 'number') ? c.accuracy : null;
   RUN.lastFixAt = Date.now();
   // trilha bruta (t, lat, lng, precisão, velocidade) — usada só para calibrar o cálculo de distância
-  if(RUN.trace.length < 6000){
+  var lastTr = RUN.trace.length ? RUN.trace[RUN.trace.length-1][0] : 0;
+  if(RUN.trace.length < 6000 && ((pos.timestamp||Date.now()) - lastTr >= 1000)){
     RUN.trace.push([pos.timestamp||Date.now(), Math.round(c.latitude*1e6)/1e6, Math.round(c.longitude*1e6)/1e6,
       (typeof c.accuracy==='number' ? Math.round(c.accuracy*10)/10 : null),
       (typeof c.speed==='number' && !isNaN(c.speed) ? Math.round(c.speed*100)/100 : null)]);
@@ -1117,56 +1127,73 @@ function onPosition(pos){
     return;
   }
   var pt = { t: pos.timestamp||Date.now(), lat:c.latitude, lng:c.longitude };
-  var prev = RUN.points.length ? RUN.points[RUN.points.length-1] : null;
-  if(prev){
-    var dt = (pt.t - prev.t)/1000;
-    var d = haversine(prev.lat, prev.lng, pt.lat, pt.lng);
-    var posSpeed = dt>0 ? d/dt : 0;
-    // Não filtramos por precisão bruta (isso travava o app com GPS
-    // indoor/inicial). Descartamos só saltos implausíveis (>~29km/h).
-    if(dt<=0 || posSpeed>8){ return; }
-    var acc = (typeof c.accuracy === 'number') ? c.accuracy : 20;
-    // Somar a distância ponto a ponto de leituras com ruído INFLA a distância
-    // (o GPS "treme" em volta da posição real). Duas correções:
-    // 1) se o aparelho informa a velocidade (efeito Doppler, bem mais estável
-    //    que a diferença entre posições), usa velocidade x tempo;
-    // 2) senão, ignora deslocamentos menores que o ruído e mantém a âncora.
-    var hasSpeed = (typeof c.speed === 'number' && !isNaN(c.speed) && c.speed >= 0 && acc <= 35);
-    var step, instSpeed;
-    if(hasSpeed){
-      instSpeed = c.speed < 0.5 ? 0 : c.speed;
-      step = instSpeed * dt;
-    } else {
-      var thr = Math.max(4, acc * 0.5);
-      if(d < thr){ return; }   // dentro do ruído: não move a âncora, não soma
-      step = d;
-      instSpeed = posSpeed;
-    }
-    RUN.speedEMA = (RUN.speedEMA == null) ? instSpeed : (0.7*RUN.speedEMA + 0.3*instSpeed);
-    RUN.lastSpeedAt = Date.now();
-    RUN.totalDistance += step;
-    RUN.blockDistance += step;
-    // parcial por km: registra cada vez que cruza um múltiplo de 1000 m
-    while(RUN.totalDistance >= (RUN.splits.length + 1) * 1000){
-      RUN.splits.push({ km: RUN.splits.length + 1, distM: 1000, timeSec: Math.max(1, RUN.totalTimeSec - RUN.splitStartSec) });
-      RUN.splitStartSec = RUN.totalTimeSec;
-      announceSplit(RUN.splits[RUN.splits.length-1]);
-    }
-  }
+  var acc = (typeof c.accuracy === 'number') ? c.accuracy : 20;
+  if(acc > 30){ return; } // leitura ruim: ignora (não move a âncora)
   RUN.points.push(pt);
   if(RUN.points.length>60) RUN.points.shift();
+  // Distância pela diferença entre POSIÇÕES a cada >= 3 s (calibrado na trilha de 17/10:
+  // a velocidade Doppler do aparelho lia ~5% menos que as posições e o Runkeeper
+  // bate com as posições). Âncora: só avança quando o deslocamento passa do ruído.
+  var anc = RUN.anchor;
+  if(!anc){ RUN.anchor = pt; return; }
+  var dtA = (pt.t - anc.t)/1000;
+  if(dtA < 3) return;
+  var d = haversine(anc.lat, anc.lng, pt.lat, pt.lng);
+  if(dtA <= 0 || d/dtA > 8){ RUN.anchor = pt; return; } // salto implausível (>~29 km/h)
+  var thr = Math.max(2, acc * 0.5);
+  if(d < thr){
+    // parado / dentro do ruído: não soma, mas o ritmo atual cai para "parado"
+    RUN.speedEMA = (RUN.speedEMA == null) ? 0 : (0.7*RUN.speedEMA);
+    RUN.lastSpeedAt = Date.now();
+    pushDistHist(pt.t, RUN.totalDistance);
+    return;
+  }
+  var step = d, instSpeed = d/dtA;
+  RUN.anchor = pt;
+  pushDistHist(pt.t, RUN.totalDistance + step);
+  RUN.speedEMA = (RUN.speedEMA == null) ? instSpeed : (0.6*RUN.speedEMA + 0.4*instSpeed);
+  RUN.lastSpeedAt = Date.now();
+  RUN.totalDistance += step;
+  RUN.blockDistance += step;
+  // parcial por km: registra cada vez que cruza um múltiplo de 1000 m
+  while(RUN.totalDistance >= (RUN.splits.length + 1) * 1000){
+    RUN.splits.push({ km: RUN.splits.length + 1, distM: 1000, timeSec: Math.max(1, RUN.totalTimeSec - RUN.splitStartSec) });
+    RUN.splitStartSec = RUN.totalTimeSec;
+    announceSplit(RUN.splits[RUN.splits.length-1]);
+  }
 }
 
 function endWarmup(gpsOk){
   if(!RUN || !RUN.warmup) return;
   RUN.warmup = false;
-  RUN.points = []; RUN.trace = []; RUN.speedEMA = null;
+  RUN.points = []; RUN.trace = []; RUN.speedEMA = null; RUN.anchor = null; RUN.distHist = [];
   RUN.startedAt = new Date().toISOString();
   vibrate([150,80,150]);
   try{ alertOk(); }catch(e){}
   toast(gpsOk ? 'GPS pronto — pode correr! O treino começou agora.' : 'GPS ainda impreciso, mas o treino começou agora.');
 }
+// Histórico (instante, distância acumulada) dos últimos ~40 s — base do ritmo médio em blocos curtos
+function pushDistHist(t, dist){
+  if(!RUN.distHist) RUN.distHist = [];
+  RUN.distHist.push({ t: t, d: dist });
+  while(RUN.distHist.length > 2 && t - RUN.distHist[0].t > 40000) RUN.distHist.shift();
+}
+// Blocos curtos (intervalos de até 3 min ou 400 m): o ritmo instantâneo oscila ±15–20 s/km,
+// então mostramos a média dos últimos ~20 s (no início do bloco, janela menor para reagir logo).
+function isShortBlock(b){ return !!b && ((b.type==='time' && b.value<=180) || (b.type==='distance' && b.value<=400)); }
 function currentPace(){
+  var blk = RUN.workout && RUN.workout.blocks[RUN.blockIndex];
+  if(isShortBlock(blk) && RUN.distHist && RUN.distHist.length >= 2 && RUN.lastSpeedAt && (Date.now() - RUN.lastSpeedAt) < 8000){
+    var W = Math.min(20, Math.max(8, RUN.blockTimeSec)) * 1000;
+    var h = RUN.distHist, last = h[h.length-1], ref = h[0];
+    for(var q = h.length - 1; q >= 0; q--){ if(last.t - h[q].t >= W){ ref = h[q]; break; } }
+    var dts = (last.t - ref.t) / 1000;
+    if(dts >= 5){
+      var v = (last.d - ref.d) / dts;
+      if(v < 0.8) return null;
+      return 1000 / v;
+    }
+  }
   // Ritmo instantâneo a partir da velocidade suavizada (menos sujeito a ruído).
   if(RUN.speedEMA != null && RUN.lastSpeedAt && (Date.now() - RUN.lastSpeedAt) < 8000){
     if(RUN.speedEMA < 0.8) return null;           // praticamente parado
@@ -1284,6 +1311,8 @@ function updateRunUI(pace, zone, block){
   document.getElementById('runBlockName').textContent = block.label;
   document.getElementById('runZoneRange').textContent = zone ? (zone.name+' · '+secToPace(zone.min)+'–'+secToPace(zone.max)+'/km') : '';
   document.getElementById('runPace').textContent = pace!=null ? secToPace(pace).replace(/^0/, '') : '--:--';
+  document.getElementById('runPaceCap').textContent = isShortBlock(block) ? 'Ritmo (média de ~20 s)' : 'Ritmo atual';
+  renderRunBlocks();
 
   var gpsInfoEl = document.getElementById('runGpsInfo');
   if(RUN.gpsError){
@@ -1326,6 +1355,25 @@ function updateRunUI(pace, zone, block){
   renderRunSplits();
   var remain = block.type==='time' ? secToClock(Math.max(0, block.value-RUN.blockTimeSec)) : Math.max(0, block.value-RUN.blockDistance).toFixed(0)+'m';
   document.getElementById('statBlockRemain').textContent = remain;
+}
+
+// Blocos do treino: quadrados (preenchido = concluído, contorno claro = em andamento) e contagem "5/10"
+function renderRunBlocks(){
+  var wrap = document.getElementById('runBlocks');
+  if(!wrap || !RUN || !RUN.workout) return;
+  var n = RUN.workout.blocks.length;
+  if(n < 2){ wrap.style.display = 'none'; return; }
+  var idx = Math.min(RUN.blockIndex, n - 1);
+  var sig = n + ':' + idx;
+  wrap.style.display = 'flex';
+  if(RUN.blockSig === sig) return;
+  RUN.blockSig = sig;
+  var sq = '';
+  for(var i = 0; i < n; i++){ sq += '<div class="rb-sq'+(i < idx ? ' done' : (i === idx ? ' cur' : ''))+'"></div>'; }
+  var sqEl = document.getElementById('rbSquares');
+  sqEl.className = 'rb-squares' + (n > 20 ? ' many' : '');
+  sqEl.innerHTML = sq;
+  document.getElementById('rbCount').innerHTML = idx + '/' + n + '<small>faltam ' + (n - idx) + '</small>';
 }
 
 // Parciais na tela de corrida: km concluídos + o km em andamento (como no Strava)
@@ -1457,7 +1505,7 @@ async function finishRun(){
   LOCAL_SESSIONS.push(session);
   var ok = await storeSetRetry('sessions:'+RUN.startedAt, session);
   // guarda só a trilha da ÚLTIMA corrida (para exportar e calibrar a distância)
-  await storeSet('trace:last', { date: RUN.startedAt, workoutName: RUN.workout.name,
+  await storeSet('trace:last', { appVersion: '2026-10-19b', date: RUN.startedAt, workoutName: RUN.workout.name,
     appDistanceM: Math.round(RUN.totalDistance), appTimeSec: RUN.totalTimeSec, splits: RUN.splits, points: RUN.trace });
   await clearInProgressSnapshot();
   toast(ok ? 'Sessão salva · ~'+sessionKcal(session.totalDistanceM)+' kcal' : 'Sessão guardada nesta sessão (falha ao sincronizar)');
