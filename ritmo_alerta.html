@@ -204,7 +204,7 @@
 
 <div class="app-header">
   <h1>Ritmo Alerta</h1>
-  <div class="sub">Sub-22 · Fase 1<span class="ver">versão 2026-10-19b</span></div>
+  <div class="sub">Sub-22 · Fase 1<span class="ver">versão 2026-10-22a</span></div>
 </div>
 
 <div class="container">
@@ -1180,6 +1180,17 @@ function pushDistHist(t, dist){
 }
 // Blocos curtos (intervalos de até 3 min ou 400 m): o ritmo instantâneo oscila ±15–20 s/km,
 // então mostramos a média dos últimos ~20 s (no início do bloco, janela menor para reagir logo).
+// Ritmo médio (s/km) dos últimos Wsec segundos, pela distância acumulada; null se faltar dado
+function windowPace(Wsec){
+  var h = RUN.distHist;
+  if(!h || h.length < 2 || !RUN.lastSpeedAt || (Date.now() - RUN.lastSpeedAt) > 15000) return null;
+  var last = h[h.length-1], ref = h[0];
+  for(var q = h.length - 1; q >= 0; q--){ if(last.t - h[q].t >= Wsec*1000){ ref = h[q]; break; } }
+  var dts = (last.t - ref.t) / 1000;
+  if(dts < Wsec * 0.5) return null;
+  var v = (last.d - ref.d) / dts;
+  return v < 0.8 ? null : 1000 / v;
+}
 function isShortBlock(b){ return !!b && ((b.type==='time' && b.value<=180) || (b.type==='distance' && b.value<=400)); }
 function currentPace(){
   var blk = RUN.workout && RUN.workout.blocks[RUN.blockIndex];
@@ -1237,7 +1248,10 @@ function tick(){
   var pace = currentPace();
 
   // tempo em cada zona de análise (segundo a segundo, pelo ritmo atual)
-  var zk = (pace != null) ? analysisZoneIdx(pace) : 'x';
+  // (média de 30 s: o ritmo instantâneo oscila ±10 s/km e, perto do limite entre zonas,
+  // jogava segundos "rápidos" na zona vizinha mesmo com o treino todo dentro da faixa)
+  var zp = windowPace(30);
+  var zk = (zp != null) ? analysisZoneIdx(zp) : ((pace != null) ? analysisZoneIdx(pace) : 'x');
   RUN.zoneSec[zk] = (RUN.zoneSec[zk] || 0) + 1;
 
   // checa avanço automático de bloco
@@ -1505,7 +1519,7 @@ async function finishRun(){
   LOCAL_SESSIONS.push(session);
   var ok = await storeSetRetry('sessions:'+RUN.startedAt, session);
   // guarda só a trilha da ÚLTIMA corrida (para exportar e calibrar a distância)
-  await storeSet('trace:last', { appVersion: '2026-10-19b', date: RUN.startedAt, workoutName: RUN.workout.name,
+  await storeSet('trace:last', { appVersion: '2026-10-22a', date: RUN.startedAt, workoutName: RUN.workout.name,
     appDistanceM: Math.round(RUN.totalDistance), appTimeSec: RUN.totalTimeSec, splits: RUN.splits, points: RUN.trace });
   await clearInProgressSnapshot();
   toast(ok ? 'Sessão salva · ~'+sessionKcal(session.totalDistanceM)+' kcal' : 'Sessão guardada nesta sessão (falha ao sincronizar)');
