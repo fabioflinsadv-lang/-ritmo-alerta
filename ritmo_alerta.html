@@ -204,7 +204,7 @@
 
 <div class="app-header">
   <h1>Ritmo Alerta</h1>
-  <div class="sub">Sub-22 · Fase 1<span class="ver">versão 2026-10-22a</span></div>
+  <div class="sub">Sub-22 · Fase 1<span class="ver">versão 2026-10-27a</span></div>
 </div>
 
 <div class="container">
@@ -1135,7 +1135,7 @@ function onPosition(pos){
   // a velocidade Doppler do aparelho lia ~5% menos que as posições e o Runkeeper
   // bate com as posições). Âncora: só avança quando o deslocamento passa do ruído.
   var anc = RUN.anchor;
-  if(!anc){ RUN.anchor = pt; return; }
+  if(!anc){ if(acc > 10) return; RUN.anchor = pt; return; } // 1ª âncora só com fix bom (o 1º fix costuma errar dezenas de metros)
   var dtA = (pt.t - anc.t)/1000;
   if(dtA < 3) return;
   var d = haversine(anc.lat, anc.lng, pt.lat, pt.lng);
@@ -1234,12 +1234,30 @@ function startTicker(){
 function stopTicker(){ if(tickTimer){ clearInterval(tickTimer); tickTimer=null; } }
 
 function tick(){
-  if(!RUN || RUN.paused) return;
+  if(!RUN){ return; }
+  if(RUN.paused){ RUN.lastTickMs = null; return; }
   if(RUN.warmup){
+    RUN.lastTickMs = null;
     // sem sinal bom em 90 s: começa mesmo assim, para não prender você na largada
     if(Date.now() - RUN.warmupStartedAt > 90000){ endWarmup(false); }
     else { updateRunUI(null); return; }
   }
+  // Relógio pela hora real: se o navegador suspendeu a página (troca de app, tela apagada),
+  // os ticks de 1 s param. Antes o tempo da corrida ficava menor que o real, o bloco durava
+  // mais do que 60 s e o ritmo do bloco saía errado. Agora os segundos perdidos são repostos.
+  var nowMs = Date.now(), inc = 1;
+  if(RUN.lastTickMs){ inc = Math.max(1, Math.floor((nowMs - RUN.lastTickMs + 200) / 1000)); RUN.lastTickMs += inc * 1000; }
+  else { RUN.lastTickMs = nowMs; }
+  for(var cu = 0; cu < inc - 1; cu++){
+    if(!RUN) return;
+    var b0 = currentBlock();
+    if(!b0) return; // treino já terminou (finishRun em andamento)
+    RUN.totalTimeSec += 1; RUN.blockTimeSec += 1;
+    RUN.zoneSec['x'] = (RUN.zoneSec['x'] || 0) + 1;
+    var d0 = (b0.type==='time' && RUN.blockTimeSec >= b0.value) || (b0.type==='distance' && RUN.blockDistance >= b0.value);
+    if(d0){ advanceBlock(b0.type==='time' ? 'tempo-completo' : 'distancia-completa'); if(!RUN) return; }
+  }
+  if(!currentBlock()) return;
   RUN.totalTimeSec += 1;
   RUN.blockTimeSec += 1;
 
@@ -1519,7 +1537,7 @@ async function finishRun(){
   LOCAL_SESSIONS.push(session);
   var ok = await storeSetRetry('sessions:'+RUN.startedAt, session);
   // guarda só a trilha da ÚLTIMA corrida (para exportar e calibrar a distância)
-  await storeSet('trace:last', { appVersion: '2026-10-22a', date: RUN.startedAt, workoutName: RUN.workout.name,
+  await storeSet('trace:last', { appVersion: '2026-10-27a', date: RUN.startedAt, workoutName: RUN.workout.name,
     appDistanceM: Math.round(RUN.totalDistance), appTimeSec: RUN.totalTimeSec, splits: RUN.splits, points: RUN.trace });
   await clearInProgressSnapshot();
   toast(ok ? 'Sessão salva · ~'+sessionKcal(session.totalDistanceM)+' kcal' : 'Sessão guardada nesta sessão (falha ao sincronizar)');
