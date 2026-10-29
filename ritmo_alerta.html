@@ -167,6 +167,14 @@
   .wk-item{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:11px 12px; margin-bottom:8px;}
   .wk-item h4{font-size:15px; margin:0 0 2px;}
   .wk-item .meta{font-size:12px; color:var(--muted); margin-bottom:8px;}
+  .wk-blocks{margin:0 0 8px; border-top:1px solid var(--line);}
+  .wk-blocks .bk{display:flex; align-items:baseline; gap:8px; padding:5px 0; border-bottom:1px solid var(--line); font-size:12px;}
+  .wk-blocks .bk .n{color:var(--muted); width:18px; flex:none; text-align:right;}
+  .wk-blocks .bk .l{flex:1; min-width:0;}
+  .wk-blocks .bk .d{color:var(--muted); flex:none;}
+  .wk-blocks .bk .p{flex:none; font-weight:700; min-width:92px; text-align:right;}
+  details.bkd > summary{font-size:12px; color:var(--muted); cursor:pointer; padding:2px 0 8px; list-style:none;}
+  details.bkd > summary::-webkit-details-marker{display:none;}
   .next-card{background:var(--panel-2); border:1px solid var(--line); border-left:5px solid #f2f2f0; border-radius:12px; padding:14px; margin-bottom:12px;}
   .next-card .lbl{font-size:13px; color:#d8d8db; font-weight:700;}
   .next-card h4{font-size:19px; margin:4px 0 2px; line-height:1.25;}
@@ -204,7 +212,7 @@
 
 <div class="app-header">
   <h1>Ritmo Alerta</h1>
-  <div class="sub">Sub-22 · Fase 1<span class="ver">versão 2026-10-27a</span></div>
+  <div class="sub">Sub-22 · Fase 1<span class="ver">versão 2026-10-28a</span></div>
 </div>
 
 <div class="container">
@@ -865,6 +873,18 @@ function nextWorkout(summary){
   for(var i = lastDone + 1; i < plan.length; i++){ if(!summary[plan[i].name]) return plan[i]; }
   return null;
 }
+function blocksHtml(w){
+  var b = w.blocks || [];
+  if(b.length < 2) return '';
+  var rows = b.map(function(x, i){
+    var zn = zoneById(x.zoneId);
+    var dur = x.type==='time' ? secToClock(x.value) : (x.value>=1000 ? (x.value/1000).toFixed(2).replace('.',',')+' km' : x.value+' m');
+    var pace = zn ? secToPace(zn.min)+'–'+secToPace(zn.max) : '—';
+    return '<div class="bk num"><span class="n">'+(i+1)+'</span><span class="l">'+x.label+'</span><span class="d">'+dur+'</span><span class="p">'+pace+'/km</span></div>';
+  }).join('');
+  if(b.length <= 6) return '<div class="wk-blocks">'+rows+'</div>';
+  return '<details class="bkd"><summary>Ver '+b.length+' blocos e ritmos ▾</summary><div class="wk-blocks">'+rows+'</div></details>';
+}
 function renderWorkoutGroups(summary, nextId, actionsFn){
   var groups = {};
   STATE.workouts.forEach(function(w){
@@ -881,7 +901,7 @@ function renderWorkoutGroups(summary, nextId, actionsFn){
     return '<details class="wk" data-k="'+g.key+'"'+(open?' open':'')+' ontoggle="STATE.openGroups[this.dataset.k]=this.open">'+
       '<summary><span>'+g.title+'</span><span class="prog'+(done===g.items.length?' done':'')+'">'+prog+'</span></summary>'+
       '<div class="wk-body">'+g.items.map(function(it){
-        return '<div class="wk-item"><h4>'+it.short+'</h4><div class="meta num">'+workoutBrief(it.w)+'</div>'+
+        return '<div class="wk-item"><h4>'+it.short+'</h4><div class="meta num">'+workoutBrief(it.w)+'</div>'+blocksHtml(it.w)+
           completedBadgeHtml(summary, it.w.name)+actionsFn(it.w)+'</div>';
       }).join('')+'</div></details>';
   }).join('');
@@ -1537,7 +1557,7 @@ async function finishRun(){
   LOCAL_SESSIONS.push(session);
   var ok = await storeSetRetry('sessions:'+RUN.startedAt, session);
   // guarda só a trilha da ÚLTIMA corrida (para exportar e calibrar a distância)
-  await storeSet('trace:last', { appVersion: '2026-10-27a', date: RUN.startedAt, workoutName: RUN.workout.name,
+  await storeSet('trace:last', { appVersion: '2026-10-28a', date: RUN.startedAt, workoutName: RUN.workout.name,
     appDistanceM: Math.round(RUN.totalDistance), appTimeSec: RUN.totalTimeSec, splits: RUN.splits, points: RUN.trace });
   await clearInProgressSnapshot();
   toast(ok ? 'Sessão salva · ~'+sessionKcal(session.totalDistanceM)+' kcal' : 'Sessão guardada nesta sessão (falha ao sincronizar)');
