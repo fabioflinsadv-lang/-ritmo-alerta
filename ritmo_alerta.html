@@ -137,6 +137,10 @@
   .run-pace-cap{font-size:15px; opacity:.7; margin-bottom:6px;}
   .run-splits{max-height:24vh; overflow-y:auto; margin:6px 22px 0; border-top:1px solid rgba(255,255,255,.15); -webkit-overflow-scrolling:touch;}
   .run-split-row{display:flex; justify-content:space-between; padding:7px 2px; font-size:17px; border-bottom:1px solid rgba(255,255,255,.1); font-variant-numeric:tabular-nums;}
+  .run-split-tabs{display:flex; gap:6px; margin:6px 22px 0;}
+  .run-split-tabs button{flex:1; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18); color:#fff; border-radius:8px; padding:6px 0; font-size:13px; font-weight:600; opacity:.6;}
+  .run-split-tabs button.on{opacity:1; background:rgba(255,255,255,.2);}
+  .run-split-row small{opacity:.7; font-size:12px; white-space:nowrap;}
   .run-split-row .k{opacity:.7;}
   .run-split-row.cur{opacity:.6; font-style:italic;}
   .run-split-row b{font-weight:800;}
@@ -186,6 +190,12 @@
   .run-stats{display:flex; justify-content:space-around; padding:10px 16px 6px; text-align:center;}
   .run-stats .val{font-size:20px; font-weight:800;}
   .run-stats .lab{font-size:12px; opacity:.75;}
+  .run-lock{position:absolute; inset:0; z-index:50; background:transparent; touch-action:none; display:flex; flex-direction:column; justify-content:flex-end; align-items:stretch; padding:0;}
+  .run-lock-bar{background:#000; padding:10px 16px calc(16px + env(safe-area-inset-bottom)); border-top:1px solid rgba(255,255,255,.15); text-align:center;}
+  .run-lock-msg{font-size:12px; color:rgba(255,255,255,.55); margin-bottom:8px;}
+  .run-lock-btn{position:relative; overflow:hidden; width:100%; padding:18px 0; border-radius:14px; border:1px solid rgba(255,255,255,.3); background:#1c1c1e; color:#fff; font-size:15px; font-weight:700; user-select:none; -webkit-user-select:none; touch-action:none;}
+  .run-lock-btn .fill{position:absolute; left:0; top:0; bottom:0; width:0; background:rgba(255,255,255,.28);}
+  .run-lock-btn .txt{position:relative;}
   .run-controls{display:flex; gap:10px; padding:14px 16px calc(16px + env(safe-area-inset-bottom));}
   .run-controls .btn{flex:1; padding:14px 6px; font-size:14px;}
   .run-controls .btn, .run-controls .btn-primary{background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.22); color:#fff;}
@@ -212,7 +222,7 @@
 
 <div class="app-header">
   <h1>Ritmo Alerta</h1>
-  <div class="sub">Sub-22 · Fase 1<span class="ver">versão 2026-10-28a</span></div>
+  <div class="sub">Sub-22 · Fase 1<span class="ver">versão 2026-10-31b</span></div>
 </div>
 
 <div class="container">
@@ -356,11 +366,16 @@
     <div><div class="val" id="statAvgPace">--:--</div><div class="lab">Ritmo médio</div></div>
     <div><div class="val" id="statBlockRemain">--</div><div class="lab">Restante</div></div>
   </div>
+  <div class="run-split-tabs" id="runSplitTabs" style="display:none"><button id="tabSplitBlk" onclick="setSplitView('blk')">Por bloco</button><button id="tabSplitKm" onclick="setSplitView('km')">Por km</button></div>
   <div class="run-splits" id="runSplits"></div>
   <div class="run-controls">
     <button class="btn" id="btnPause" onclick="togglePause()">Pausar</button>
     <button class="btn" id="btnVoice" onclick="toggleVoice()">Voz ligada</button>
     <button class="btn btn-primary" onclick="skipBlock()">Pular bloco</button>
+  </div>
+  <div id="runLock" class="run-lock" style="display:none">
+    <div class="run-lock-bar"><div class="run-lock-msg">Tela bloqueada · toques ignorados</div>
+    <button id="runLockBtn" class="run-lock-btn"><span class="fill" id="runLockFill"></span><span class="txt">🔒 Segure 1,5 s para destravar</span></button></div>
   </div>
 </div>
 
@@ -1099,6 +1114,7 @@ function confirmStart(isFree, workoutId){
   document.getElementById('freeZonePickCard').style.display='none';
   refreshVoiceBtn();
   openRunScreen();
+  armAutoLock();
   startGeolocation();
   startTicker();
 }
@@ -1107,7 +1123,7 @@ function openRunScreen(){
   document.getElementById('runScreen').className='status-idle';
   updateRunUI(null);
 }
-function closeRunScreenOnly(){ document.getElementById('runScreen').style.display='none'; }
+function closeRunScreenOnly(){ disarmAutoLock(); document.getElementById('runScreen').style.display='none'; }
 
 function currentBlock(){ return RUN.workout.blocks[RUN.blockIndex]; }
 
@@ -1126,8 +1142,63 @@ function startGeolocation(){
 }
 function stopGeolocation(){ if(watchId!=null){ navigator.geolocation.clearWatch(watchId); watchId=null; } }
 
+
+/* ---- bloqueio de toque (telefone no bolso com a tela ligada) ---- */
+var LOCK_IDLE_MS = 8000, lockIdleTimer = null, lockHoldTimer = null;
+function runLockOn(){
+  if(!RUN || RUN.paused) { armAutoLock(); return; }
+  var el = document.getElementById('runLock'); if(el) el.style.display = 'flex';
+}
+function runLockOff(){
+  var el = document.getElementById('runLock'); if(el) el.style.display = 'none';
+  var f = document.getElementById('runLockFill'); if(f){ f.style.transition='none'; f.style.width='0'; }
+  clearTimeout(lockHoldTimer); armAutoLock();
+}
+function armAutoLock(){
+  clearTimeout(lockIdleTimer);
+  if(!RUN) return;
+  lockIdleTimer = setTimeout(runLockOn, LOCK_IDLE_MS);
+}
+function disarmAutoLock(){ clearTimeout(lockIdleTimer); clearTimeout(lockHoldTimer); var el=document.getElementById('runLock'); if(el) el.style.display='none'; }
+(function(){
+  var scr = document.getElementById('runScreen');
+  if(scr) scr.addEventListener('pointerdown', function(){
+    var lk = document.getElementById('runLock');
+    if(lk && lk.style.display !== 'none') return;
+    armAutoLock();
+  }, true);
+  var btn = document.getElementById('runLockBtn');
+  if(!btn) return;
+  function startHold(e){
+    e.preventDefault();
+    var f = document.getElementById('runLockFill');
+    f.style.transition = 'width 1.5s linear'; f.style.width = '100%';
+    clearTimeout(lockHoldTimer); lockHoldTimer = setTimeout(runLockOff, 1500);
+  }
+  function endHold(){
+    clearTimeout(lockHoldTimer);
+    var f = document.getElementById('runLockFill'); f.style.transition='none'; f.style.width='0';
+  }
+  btn.addEventListener('pointerdown', startHold);
+  ['pointerup','pointercancel','pointerleave'].forEach(function(n){ btn.addEventListener(n, endHold); });
+  btn.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+})();
+// Se estiver PAUSADO mas se movendo como corrida (≥ 25 m em ~10 s), retoma sozinho
+function autoResumeCheck(pos){
+  var c = pos.coords; if(typeof c.accuracy === 'number' && c.accuracy > 20) return;
+  var t = pos.timestamp || Date.now();
+  RUN.pausePts = (RUN.pausePts || []).filter(function(q){ return t - q.t <= 14000; });
+  RUN.pausePts.push({ t:t, lat:c.latitude, lng:c.longitude });
+  var a = RUN.pausePts[0];
+  if(t - a.t >= 9000 && haversine(a.lat, a.lng, c.latitude, c.longitude) >= 25){
+    togglePause();
+    toast('Retomado automaticamente: você estava correndo');
+  }
+}
+
 function onPosition(pos){
-  if(!RUN || RUN.paused) return;
+  if(!RUN) return;
+  if(RUN.paused){ autoResumeCheck(pos); return; }
   RUN.gpsError = null; // qualquer leitura, mesmo imprecisa, limpa o estado de erro
   var c = pos.coords;
   RUN.lastAccuracy = (typeof c.accuracy === 'number') ? c.accuracy : null;
@@ -1429,14 +1500,43 @@ function renderRunBlocks(){
 }
 
 // Parciais na tela de corrida: km concluídos + o km em andamento (como no Strava)
+var SPLIT_VIEW = null; // 'blk' | 'km' (padrão: blocos quando o treino tem 2+ blocos)
+function setSplitView(v){ SPLIT_VIEW = v; if(RUN){ RUN.splitSig = null; renderRunSplits(); } }
 function renderRunSplits(){
   var el = document.getElementById('runSplits');
   if(!el || !RUN) return;
+  var multi = !!(RUN.workout && RUN.workout.blocks && RUN.workout.blocks.length >= 2);
+  var view = multi ? (SPLIT_VIEW || 'blk') : 'km';
+  var tabs = document.getElementById('runSplitTabs');
+  if(tabs){
+    tabs.style.display = multi ? 'flex' : 'none';
+    document.getElementById('tabSplitBlk').className = view==='blk' ? 'on' : '';
+    document.getElementById('tabSplitKm').className = view==='km' ? 'on' : '';
+  }
   var remM = Math.max(0, RUN.totalDistance - RUN.splits.length * 1000);
-  var sig = RUN.splits.length + ':' + Math.floor(remM/50);
+  var sig = view + ':' + RUN.splits.length + ':' + Math.floor(remM/50) + ':' + (RUN.log||[]).length + ':' + Math.floor((RUN.blockTimeSec||0)/5);
   if(RUN.splitSig === sig) return;
   RUN.splitSig = sig;
   var rows = [];
+  if(view === 'blk'){
+    var blocks = RUN.workout.blocks;
+    if(!RUN.warmup && RUN.blockIndex < blocks.length && RUN.blockDistance >= 30 && RUN.blockTimeSec > 0){
+      var cb = blocks[RUN.blockIndex], cz = zoneById(cb.zoneId);
+      var cp = RUN.blockTimeSec / (RUN.blockDistance/1000);
+      rows.push('<div class="run-split-row cur"><span class="k">'+(RUN.blockIndex+1)+'. '+cb.label+' · agora</span><span>'+secToPace(cp).replace(/^0/,'')+' <small>('+Math.round(RUN.blockDistance)+' m)</small></span></div>');
+    }
+    var lg = RUN.log || [];
+    for(var j = lg.length - 1; j >= 0; j--){
+      var r = lg[j];
+      if(!(r.distanceM > 0 && r.timeSec > 0)){ rows.push('<div class="run-split-row"><span class="k">'+(j+1)+'. '+r.label+'</span><span>—</span></div>'); continue; }
+      var rp = r.timeSec / (r.distanceM/1000);
+      var okb = (r.targetMin != null) ? (rp >= r.targetMin && rp <= r.targetMax) : null;
+      rows.push('<div class="run-split-row"><span class="k">'+(j+1)+'. '+r.label+'</span><span><b>'+secToPace(rp).replace(/^0/,'')+'</b>'+(okb===null ? '' : (okb ? ' ✓' : ' ✗'))+' <small>'+Math.round(r.distanceM)+' m</small></span></div>');
+    }
+    if(!rows.length) rows.push('<div class="run-split-row cur"><span class="k">Nenhum bloco concluído ainda</span><span></span></div>');
+    el.innerHTML = rows.join('');
+    return;
+  }
   if(remM >= 100 && !RUN.warmup){
     var pp = (RUN.totalTimeSec - RUN.splitStartSec) / (remM/1000);
     rows.push('<div class="run-split-row cur"><span class="k">Km '+(RUN.splits.length+1)+' · em andamento</span><span>'+secToPace(pp).replace(/^0/,'')+' <small>('+Math.round(remM)+' m)</small></span></div>');
@@ -1511,6 +1611,9 @@ function skipBlock(){
 function togglePause(){
   if(!RUN) return;
   RUN.paused = !RUN.paused;
+  // Ao retomar, descarta a âncora de distância: o que foi percorrido durante a pausa não conta
+  // (antes, o 1º ponto após "Retomar" somava em linha reta todo o trecho da pausa, sem o tempo).
+  if(!RUN.paused){ RUN.anchor = null; RUN.speedEMA = null; } else { RUN.pausePts = []; }
   document.getElementById('btnPause').textContent = RUN.paused ? 'Retomar' : 'Pausar';
   toast(RUN.paused ? 'Pausado' : 'Retomado');
 }
@@ -1524,7 +1627,7 @@ function confirmStop(){
 var WEIGHT_KG = 84;
 function sessionKcal(distM){ return Math.round(WEIGHT_KG * (distM/1000) * 1.0); }
 async function finishRun(){
-  releaseWakeLock();
+  releaseWakeLock(); disarmAutoLock();
   // fecha bloco atual se ainda não foi logado (parada manual no meio do bloco)
   var block = currentBlock();
   if(block && (RUN.blockTimeSec>0 || RUN.blockDistance>0) && (!RUN.log.length || RUN.log[RUN.log.length-1].label!==block.label)){
@@ -1557,7 +1660,7 @@ async function finishRun(){
   LOCAL_SESSIONS.push(session);
   var ok = await storeSetRetry('sessions:'+RUN.startedAt, session);
   // guarda só a trilha da ÚLTIMA corrida (para exportar e calibrar a distância)
-  await storeSet('trace:last', { appVersion: '2026-10-28a', date: RUN.startedAt, workoutName: RUN.workout.name,
+  await storeSet('trace:last', { appVersion: '2026-10-31b', date: RUN.startedAt, workoutName: RUN.workout.name,
     appDistanceM: Math.round(RUN.totalDistance), appTimeSec: RUN.totalTimeSec, splits: RUN.splits, points: RUN.trace });
   await clearInProgressSnapshot();
   toast(ok ? 'Sessão salva · ~'+sessionKcal(session.totalDistanceM)+' kcal' : 'Sessão guardada nesta sessão (falha ao sincronizar)');
@@ -1589,6 +1692,26 @@ function analysisZoneIdx(paceSec){
 function buildAnalysisHtml(s){
   var splits = s.splits || [];
   var html = '';
+  var bl = (s.blocks || []).filter(function(b){ return b.distanceM > 0 && b.timeSec > 0; });
+  if(bl.length >= 2){
+    var bp = bl.map(function(b){ return b.timeSec / (b.distanceM/1000); });
+    var bmax = Math.max.apply(null, bp), bmin = Math.min.apply(null, bp);
+    html += '<div style="font-weight:700; font-size:12px; margin:10px 0 4px;">Parciais por bloco</div>';
+    bl.forEach(function(b, i){
+      var p = bp[i];
+      var z = ANALYSIS_ZONES[analysisZoneIdx(p)];
+      var w = bmax > bmin ? 40 + 60 * (bmax - p) / (bmax - bmin) : 70;
+      var chk = (b.targetMin != null) ? ((p >= b.targetMin && p <= b.targetMax) ? ' <span style="color:#fff;">✓</span>' : ' <span style="color:#8e8e93;">✗</span>') : '';
+      var tgt = (b.targetMin != null) ? '<span style="color:var(--muted);"> · alvo '+secToPace(b.targetMin)+'–'+secToPace(b.targetMax)+'</span>' : '';
+      html += '<div style="margin:5px 0; font-size:12px;">'+
+        '<div style="display:flex; align-items:baseline; gap:8px;">'+
+        '<span style="flex:1; min-width:0; color:var(--muted);">'+(i+1)+'. '+b.label+'</span>'+
+        '<span style="font-weight:700;">'+secToPace(p)+'/km'+chk+'</span></div>'+
+        '<div style="display:flex; align-items:center; gap:8px; margin-top:2px;">'+
+        '<span style="flex:1;"><span style="display:block; height:8px; width:'+w+'%; background:'+z.color+'; border-radius:4px;"></span></span>'+
+        '<span style="font-size:11px; color:var(--muted); flex:none;">'+Math.round(b.distanceM)+' m · '+secToClock(b.timeSec)+tgt+'</span></div></div>';
+    });
+  }
   if(splits.length){
     var paces = splits.map(function(sp){ return sp.timeSec / (sp.distM/1000); });
     var full = splits.filter(function(sp){ return sp.distM >= 950; });
