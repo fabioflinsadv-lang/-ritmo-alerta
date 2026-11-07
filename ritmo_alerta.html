@@ -222,7 +222,7 @@
 
 <div class="app-header">
   <h1>Ritmo Alerta</h1>
-  <div class="sub">Sub-22 · Fase 1<span class="ver">versão 2026-10-31b</span></div>
+  <div class="sub">Sub-22 · Fase 2<span class="ver">versão 2026-11-07a</span></div>
 </div>
 
 <div class="container">
@@ -467,7 +467,14 @@ var DEFAULT_ZONES = [
   {id:'tempo_f1_s3', name:'Tempo (Fase 1 · Sem.3)', min:300, max:310, color:'#E8551D'},
   {id:'tempo_f1_s4', name:'Tempo (Fase 1 · Sem.4)', min:295, max:305, color:'#E8551D'},
   {id:'tempo_f1_s5', name:'Tempo (Fase 1 · Sem.5)', min:295, max:300, color:'#E8551D'},
-  {id:'moderado_longao_s4', name:'Moderado (Fase 1 · Final Longão Sem.4)', min:330, max:350, color:'#4c8bf5'}
+  {id:'moderado_longao_s4', name:'Moderado (Fase 1 · Final Longão Sem.4)', min:330, max:350, color:'#4c8bf5'},
+  {id:'facil_f2', name:'Fácil (Fase 2 · Limiar)', min:340, max:370, color:'#4C8BF5'},
+  {id:'limiar_f2_s6', name:'Limiar (Fase 2 · Sem.6)', min:290, max:295, color:'#E8551D'},
+  {id:'limiar_f2_s7_int', name:'Limiar 1 km (Fase 2 · Sem.7)', min:288, max:293, color:'#E8551D'},
+  {id:'limiar_f2_s7_tempo', name:'Tempo (Fase 2 · Sem.7)', min:288, max:292, color:'#E8551D'},
+  {id:'limiar_f2_s8_int', name:'Limiar 1,2 km (Fase 2 · Sem.8)', min:287, max:292, color:'#E8551D'},
+  {id:'limiar_f2_s8_tempo', name:'Tempo (Fase 2 · Sem.8)', min:285, max:290, color:'#E8551D'},
+  {id:'teste_5k_s9', name:'Teste 5 km (Sem.9)', min:270, max:290, color:'#F2B705'}
 ];
 function defaultWorkouts(){
   return [
@@ -713,6 +720,87 @@ function defaultWorkouts(){
     ]},
     {id:'w38', name:'Sub-22 · Sem.5 · Treino D (Longão 40min, respiro)', blocks:[
       {label:'Longão Fácil', type:'time', value:2400, zoneId:'facil_f1'}
+    ]},
+    {id:'w39', name:'Sub-22 · Sem.6 · Treino A (Limiar 3x1km)', blocks:[
+      {label:'Aquecimento + strides', type:'time', value:600, zoneId:'facil_f2'},
+      {label:'Tiro 1', type:'distance', value:1000, zoneId:'limiar_f2_s6'},
+      {label:'Recuperação 1', type:'time', value:120, zoneId:'recuperacao'},
+      {label:'Tiro 2', type:'distance', value:1000, zoneId:'limiar_f2_s6'},
+      {label:'Recuperação 2', type:'time', value:120, zoneId:'recuperacao'},
+      {label:'Tiro 3', type:'distance', value:1000, zoneId:'limiar_f2_s6'},
+      {label:'Desaquecimento', type:'time', value:300, zoneId:'facil_f2'}
+    ]},
+    {id:'w40', name:'Sub-22 · Sem.6 · Treino B (Fácil 25min)', blocks:[
+      {label:'Corrida Fácil', type:'time', value:1500, zoneId:'facil_f2'}
+    ]},
+    {id:'w41', name:'Sub-22 · Sem.6 · Treino C (Tempo 15min)', blocks:[
+      {label:'Aquecimento', type:'time', value:600, zoneId:'facil_f2'},
+      {label:'Tempo Contínuo', type:'time', value:900, zoneId:'limiar_f2_s6'},
+      {label:'Desaquecimento', type:'time', value:600, zoneId:'facil_f2'}
+    ]},
+    {id:'w42', name:'Sub-22 · Sem.6 · Treino D (Longão 50min)', blocks:[
+      {label:'Longão Fácil', type:'time', value:3000, zoneId:'facil_f2'}
+    ]},
+    {id:'w43', name:'Sub-22 · Sem.7 · Treino A (Limiar 4x1km)', blocks:[
+      {label:'Aquecimento + strides', type:'time', value:600, zoneId:'facil_f2'},
+      {label:'Tiro 1', type:'distance', value:1000, zoneId:'limiar_f2_s7_int'},
+      {label:'Recuperação 1', type:'time', value:120, zoneId:'recuperacao'},
+      {label:'Tiro 2', type:'distance', value:1000, zoneId:'limiar_f2_s7_int'},
+      {label:'Recuperação 2', type:'time', value:120, zoneId:'recuperacao'},
+      {label:'Tiro 3', type:'distance', value:1000, zoneId:'limiar_f2_s7_int'},
+      {label:'Recuperação 3', type:'time', value:120, zoneId:'recuperacao'},
+      {label:'Tiro 4', type:'distance', value:1000, zoneId:'limiar_f2_s7_int'},
+      {label:'Desaquecimento', type:'time', value:300, zoneId:'facil_f2'}
+    ]},
+    {id:'w44', name:'Sub-22 · Sem.7 · Treino B (Fácil 28min)', blocks:[
+      {label:'Corrida Fácil', type:'time', value:1680, zoneId:'facil_f2'}
+    ]},
+    {id:'w45', name:'Sub-22 · Sem.7 · Treino C (Tempo 18min)', blocks:[
+      {label:'Aquecimento', type:'time', value:600, zoneId:'facil_f2'},
+      {label:'Tempo Contínuo', type:'time', value:1080, zoneId:'limiar_f2_s7_tempo'},
+      {label:'Desaquecimento', type:'time', value:600, zoneId:'facil_f2'}
+    ]},
+    {id:'w46', name:'Sub-22 · Sem.7 · Treino D (Longão 55min, 2x5min moderado)', blocks:[
+      {label:'Fácil 1', type:'time', value:1200, zoneId:'facil_f2'},
+      {label:'Moderado 1', type:'time', value:300, zoneId:'moderado_f1'},
+      {label:'Fácil 2', type:'time', value:600, zoneId:'facil_f2'},
+      {label:'Moderado 2', type:'time', value:300, zoneId:'moderado_f1'},
+      {label:'Fácil 3', type:'time', value:900, zoneId:'facil_f2'}
+    ]},
+    {id:'w47', name:'Sub-22 · Sem.8 · Treino A (Limiar 4x1,2km)', blocks:[
+      {label:'Aquecimento + strides', type:'time', value:600, zoneId:'facil_f2'},
+      {label:'Tiro 1', type:'distance', value:1200, zoneId:'limiar_f2_s8_int'},
+      {label:'Recuperação 1', type:'time', value:150, zoneId:'recuperacao'},
+      {label:'Tiro 2', type:'distance', value:1200, zoneId:'limiar_f2_s8_int'},
+      {label:'Recuperação 2', type:'time', value:150, zoneId:'recuperacao'},
+      {label:'Tiro 3', type:'distance', value:1200, zoneId:'limiar_f2_s8_int'},
+      {label:'Recuperação 3', type:'time', value:150, zoneId:'recuperacao'},
+      {label:'Tiro 4', type:'distance', value:1200, zoneId:'limiar_f2_s8_int'},
+      {label:'Desaquecimento', type:'time', value:300, zoneId:'facil_f2'}
+    ]},
+    {id:'w48', name:'Sub-22 · Sem.8 · Treino B (Fácil 28min)', blocks:[
+      {label:'Corrida Fácil', type:'time', value:1680, zoneId:'facil_f2'}
+    ]},
+    {id:'w49', name:'Sub-22 · Sem.8 · Treino C (Tempo 20min)', blocks:[
+      {label:'Aquecimento', type:'time', value:600, zoneId:'facil_f2'},
+      {label:'Tempo Contínuo', type:'time', value:1200, zoneId:'limiar_f2_s8_tempo'},
+      {label:'Desaquecimento', type:'time', value:600, zoneId:'facil_f2'}
+    ]},
+    {id:'w50', name:'Sub-22 · Sem.8 · Treino D (Longão 58min)', blocks:[
+      {label:'Longão Fácil', type:'time', value:3480, zoneId:'facil_f2'}
+    ]},
+    {id:'w51', name:'Sub-22 · Sem.9 · Treino A (Fácil 25min + 4x20s strides)', blocks:[
+      {label:'Corrida Fácil (+4x20s strides ao final, não cronometradas)', type:'time', value:1500, zoneId:'facil_f2'}
+    ]},
+    {id:'w52', name:'Sub-22 · Sem.9 · Treino B (Fácil 20min)', blocks:[
+      {label:'Corrida Fácil', type:'time', value:1200, zoneId:'facil_f2'}
+    ]},
+    {id:'w53', name:'Sub-22 · Sem.9 · Treino C (Fácil leve 20min, ou descanso)', blocks:[
+      {label:'Corrida Fácil leve', type:'time', value:1200, zoneId:'facil_f2'}
+    ]},
+    {id:'w54', name:'Sub-22 · Sem.9 · Treino D (TESTE 5km)', blocks:[
+      {label:'Aquecimento', type:'time', value:600, zoneId:'facil_f2'},
+      {label:'Teste 5 km', type:'distance', value:5000, zoneId:'teste_5k_s9'}
     ]}
   ];
 }
@@ -1660,7 +1748,7 @@ async function finishRun(){
   LOCAL_SESSIONS.push(session);
   var ok = await storeSetRetry('sessions:'+RUN.startedAt, session);
   // guarda só a trilha da ÚLTIMA corrida (para exportar e calibrar a distância)
-  await storeSet('trace:last', { appVersion: '2026-10-31b', date: RUN.startedAt, workoutName: RUN.workout.name,
+  await storeSet('trace:last', { appVersion: '2026-11-07a', date: RUN.startedAt, workoutName: RUN.workout.name,
     appDistanceM: Math.round(RUN.totalDistance), appTimeSec: RUN.totalTimeSec, splits: RUN.splits, points: RUN.trace });
   await clearInProgressSnapshot();
   toast(ok ? 'Sessão salva · ~'+sessionKcal(session.totalDistanceM)+' kcal' : 'Sessão guardada nesta sessão (falha ao sincronizar)');
